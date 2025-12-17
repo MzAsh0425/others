@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>次回アンサンブル選曲候補</title>
+    <style>
+        /* --- デザイン設定 (CSS) --- */
+        body {
+            font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
+            background-color: #f4f4f9; /* 背景色：薄いグレー */
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        h1 {
+            color: #2c3e50;
+            font-size: 1.8rem;
+        }
+        .description {
+            color: #666;
+            font-size: 0.9rem;
+        }
+        
+        /* グリッドレイアウト：カードを綺麗に並べる */
+        .container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        /* カードのデザイン */
+        .card {
+            background: white;
+            border-radius: 12px; /* 角丸 */
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1); /* 影 */
+            overflow: hidden;
+            transition: transform 0.2s;
+            display: flex;
+            flex-direction: column;
+        }
+        .card:hover {
+            transform: translateY(-5px); /* ホバー時に少し浮く */
+        }
+        
+        /* YouTube埋め込み部分 */
+        .video-wrapper {
+            position: relative;
+            padding-bottom: 56.25%; /* 16:9の比率を維持 */
+            height: 0;
+        }
+        .video-wrapper iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        /* テキスト情報のエリア */
+        .card-content {
+            padding: 15px;
+        }
+        .tag {
+            display: inline-block;
+            background-color: #e0e7ff;
+            color: #4338ca;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+        .song-title {
+            font-size: 1.1rem;
+            font-weight: bold;
+            margin: 0 0 5px 0;
+        }
+        .song-meta {
+            font-size: 0.85rem;
+            color: #777;
+            margin-bottom: 10px;
+        }
+        .comment {
+            font-size: 0.9rem;
+            line-height: 1.5;
+            color: #444;
+            border-top: 1px solid #eee;
+            padding-top: 10px;
+            margin-top: auto; /* コメントを下揃えにする */
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>🎵 アンサンブル選曲リスト</h1>
+        <p class="description">気になった曲を聴いて、次回の練習で相談しましょう！</p>
+    </header>
+
+    <div class="container" id="song-list">
+        </div>
+
+    <script>
+        // --- 設定エリア：ここに曲を追加していくだけ！ ---
+        const songs = [
+            {
+                title: "宝島",
+                composer: "T-SQUARE",
+                genre: "吹奏楽 / Fusion",
+                youtubeId: "vB0X57K3Jk4", // YouTubeのURLの「v=」より後ろの部分
+                comment: "定番の盛り上がる曲。ソロ回しのアレンジをどうするかが鍵になりそう。"
+            },
+            {
+                title: "星条旗よ永遠なれ",
+                composer: "J.P.スーザ",
+                genre: "Classic / March",
+                youtubeId: "a-7XWhyvIpE", 
+                comment: "ジャズアレンジ版もかっこいいかも。足鍵盤が忙しいけど聴き映えは抜群。"
+            },
+            {
+                title: "ミックスナッツ",
+                composer: "Official髭男dism",
+                genre: "J-POP",
+                youtubeId: "CbH2F0kXgTY", 
+                comment: "リズムが難しいけど、疾走感があって楽しい。5〜3級向けアレンジを探す必要あり。"
+            }
+        ];
+
+        // --- 描画ロジック（ここは触らなくてOK） ---
+        const container = document.getElementById('song-list');
+
+        songs.forEach(song => {
+            const cardHTML = `
+                <div class="card">
+                    <div class="video-wrapper">
+                        <iframe src="https://www.youtube.com/embed/${song.youtubeId}" allowfullscreen></iframe>
+                    </div>
+                    <div class="card-content">
+                        <span class="tag">${song.genre}</span>
+                        <h2 class="song-title">${song.title}</h2>
+                        <div class="song-meta">${song.composer}</div>
+                        <div class="comment">${song.comment}</div>
+                    </div>
+                </div>
+            `;
+            container.innerHTML += cardHTML;
+        });
+    </script>
+</body>
+</html>
