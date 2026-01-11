@@ -1,4 +1,10 @@
-<style>
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>イベント作成 - スマート日程調整</title>
+    <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             background-color: #f4f4f9;
@@ -162,3 +168,157 @@
         }
         .preview-table td.active-cell { background-color: #fff; }
     </style>
+</head>
+<body>
+
+    <h1>📅 イベント作成</h1>
+    <p style="font-size:0.9rem; color:#666;">候補日と時間帯を追加してください。</p>
+
+    <div class="form-card">
+        <div class="input-group">
+            <label>イベント名</label>
+            <input type="text" id="eventTitle" placeholder="例：第3回 開発定例">
+        </div>
+
+        <label>候補日時の追加</label>
+        <div class="date-adder">
+            <div class="field-date">
+                <label style="font-size:0.8rem;">日付</label>
+                <input type="date" id="inputDate">
+            </div>
+            <div class="field-time-range">
+                <div style="flex:1">
+                    <label style="font-size:0.8rem;">開始</label>
+                    <select id="inputStart"></select>
+                </div>
+                <div style="padding-top:18px;">～</div>
+                <div style="flex:1">
+                    <label style="font-size:0.8rem;">終了</label>
+                    <select id="inputEnd"></select>
+                </div>
+            </div>
+            <div class="field-btn">
+                <button class="btn-add" onclick="addCandidate()">追加</button>
+            </div>
+        </div>
+
+        <ul class="candidate-list" id="candidateList"></ul>
+    </div>
+
+    <div class="preview-area" id="previewArea" style="display:none;">
+        <h3>👀 プレビュー</h3>
+        <div style="overflow-x:auto;">
+            <table class="preview-table" id="previewTable"></table>
+        </div>
+    </div>
+
+    <button class="btn-create" onclick="createEvent()">イベントを作成する</button>
+
+    <script>
+        const listEl = document.getElementById('candidateList');
+        const previewArea = document.getElementById('previewArea');
+        const previewTable = document.getElementById('previewTable');
+        
+        let candidates = []; 
+
+        // --- 修正箇所：0時から23時までループ ---
+        const startSel = document.getElementById('inputStart');
+        const endSel = document.getElementById('inputEnd');
+        for(let i=0; i<=23; i++) { 
+            const val = i; // 単純な数値を使用
+            const text = i + ":00";
+            const opt = `<option value="${val}">${text}</option>`;
+            startSel.innerHTML += opt;
+            endSel.innerHTML += opt;
+        }
+        // デフォルト値をセット（例: 10:00 〜 18:00）
+        startSel.value = "10";
+        endSel.value = "18";
+
+        document.getElementById('inputDate').valueAsDate = new Date();
+
+        function addCandidate() {
+            const dateVal = document.getElementById('inputDate').value;
+            const startVal = parseInt(document.getElementById('inputStart').value);
+            const endVal = parseInt(document.getElementById('inputEnd').value);
+
+            if (!dateVal) { alert("日付を選択してください"); return; }
+            // 同じ時間や逆転はエラーにするが、0時〜23時の範囲内ならOK
+            if (startVal >= endVal) { alert("終了時間は開始時間より後にしてください"); return; }
+
+            candidates.push({ date: dateVal, start: startVal, end: endVal });
+            candidates.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+            renderList();
+            renderPreview();
+        }
+
+        function renderList() {
+            listEl.innerHTML = "";
+            candidates.forEach((c, index) => {
+                const li = document.createElement('li');
+                li.className = "candidate-item";
+                li.innerHTML = `
+                    <span><strong>${c.date}</strong> ${c.start}:00 ～ ${c.end}:00</span>
+                    <button class="btn-delete" onclick="removeCandidate(${index})">削除</button>
+                `;
+                listEl.appendChild(li);
+            });
+        }
+
+        function removeCandidate(index) {
+            candidates.splice(index, 1);
+            renderList();
+            renderPreview();
+        }
+
+        function renderPreview() {
+            if (candidates.length === 0) {
+                previewArea.style.display = 'none';
+                return;
+            }
+            previewArea.style.display = 'block';
+
+            let minStart = 24;
+            let maxEnd = 0;
+            const uniqueDates = [...new Set(candidates.map(c => c.date))];
+            
+            candidates.forEach(c => {
+                if (c.start < minStart) minStart = c.start;
+                if (c.end > maxEnd) maxEnd = c.end;
+            });
+
+            let html = `<thead><tr><th>時間</th>`;
+            uniqueDates.forEach(d => {
+                const dateStr = new Date(d).toLocaleDateString('ja-JP', {month:'numeric', day:'numeric', weekday:'short'});
+                html += `<th>${dateStr}</th>`;
+            });
+            html += `</tr></thead><tbody>`;
+
+            for (let t = minStart; t < maxEnd; t++) {
+                html += `<tr>`;
+                html += `<th>${t}:00</th>`; 
+                uniqueDates.forEach(date => {
+                    const isActive = candidates.some(c => c.date === date && t >= c.start && t < c.end);
+                    if (isActive) {
+                        html += `<td class="active-cell">◯</td>`;
+                    } else {
+                        html += `<td class="disabled-cell"></td>`; 
+                    }
+                });
+                html += `</tr>`;
+            }
+            html += `</tbody>`;
+            previewTable.innerHTML = html;
+        }
+
+        function createEvent() {
+            const title = document.getElementById('eventTitle').value;
+            if(!title) { alert("イベント名を入力してください"); return; }
+            if(candidates.length === 0) { alert("候補日時を追加してください"); return; }
+            console.log("作成データ:", { title, candidates });
+            alert("作成完了！(DB保存処理へ)");
+        }
+    </script>
+</body>
+</html>
