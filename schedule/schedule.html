@@ -227,86 +227,137 @@
     </div>
 
     <script>
-        // --- 1. テーブル生成ロジック ---
-        const times = ["10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00"];
-        const cols = 5; // 月〜金
-        const tbody = document.querySelector('tbody');
+        // --- 1. テーブル生成ロジック（変更なし） ---
+    const times = ["10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00"];
+    const cols = 5; 
+    const tbody = document.querySelector('tbody');
 
-        times.forEach(time => {
-            const tr = document.createElement('tr');
-            // 時間ヘッダー
-            const th = document.createElement('th');
-            th.innerText = time;
-            tr.appendChild(th);
+    times.forEach(time => {
+        const tr = document.createElement('tr');
+        const th = document.createElement('th');
+        th.innerText = time;
+        tr.appendChild(th);
 
-            // 各セル
-            for(let i=0; i<cols; i++) {
-                const td = document.createElement('td');
-                td.className = 'bg-mid'; // 仮の背景色（集計結果イメージ）
-                
-                // ご要望の「3行カウント表示」
-                // 実際はDBから取得した値を入れます。ここはダミー。
-                td.innerHTML = `
-                    <div class="cell-content">
-                        <span class="count-row c-o">●${Math.floor(Math.random()*5)}</span>
-                        <span class="count-row c-tri">▲${Math.floor(Math.random()*2)}</span>
-                        <span class="count-row c-x">×${Math.floor(Math.random()*2)}</span>
-                    </div>
-                `;
-                
-                // タッチイベント用属性
-                td.dataset.selected = "false"; 
-                tr.appendChild(td);
-            }
-            tbody.appendChild(tr);
-        });
-
-        // --- 2. なぞって入力（Paint Mode）の実装 ---
-        let currentPen = 'o';
-        const paintCheck = document.getElementById('paintModeCheck');
-        const matrixContainer = document.getElementById('matrix');
-
-        function setPen(type) {
-            currentPen = type;
-            document.querySelectorAll('.pen-btn').forEach(b => b.classList.remove('active'));
-            document.querySelector(`.pen-${type}`).classList.add('active');
+        for(let i=0; i<cols; i++) {
+            const td = document.createElement('td');
+            // 初期状態（デモ用）
+            td.innerHTML = `
+                <div class="cell-content">
+                    <span class="count-row c-o">●${Math.floor(Math.random()*5)}</span>
+                    <span class="count-row c-tri">▲${Math.floor(Math.random()*2)}</span>
+                    <span class="count-row c-x">×${Math.floor(Math.random()*2)}</span>
+                </div>
+            `;
+            td.className = 'bg-mid'; 
+            tr.appendChild(td);
         }
+        tbody.appendChild(tr);
+    });
 
-        // スマホでのドラッグ処理
-        // "touchmove" イベントを使って指の下にある要素を特定する
-        matrixContainer.addEventListener('touchmove', function(e) {
-            if (!paintCheck.checked) return; // ペイントモードOFFならスクロールさせる
+    // --- 2. 高機能な「なぞり入力」の実装 ---
+    let currentPen = 'o';
+    const paintCheck = document.getElementById('paintModeCheck');
+    const matrixContainer = document.getElementById('matrix');
 
-            e.preventDefault(); // スクロール禁止（これが重要）
+    // ドラッグ中の動作モード ('paint' = 塗る, 'erase' = 消す, null = 何もしない)
+    let dragAction = null; 
+    let lastTouchedCell = null; // 同じセルで何度も処理が走るのを防ぐ
 
-            // 指の位置にある要素を取得
-            const touch = e.touches[0];
-            const target = document.elementFromPoint(touch.clientX, touch.clientY);
+    function setPen(type) {
+        currentPen = type;
+        document.querySelectorAll('.pen-btn').forEach(b => b.classList.remove('active'));
+        document.querySelector(`.pen-${type}`).classList.add('active');
+    }
 
-            if (target && (target.tagName === 'TD' || target.closest('td'))) {
-                const td = target.tagName === 'TD' ? target : target.closest('td');
-                updateCell(td);
-            }
-        }, { passive: false });
+    // セルの状態を更新する関数
+    function applyCellState(td, action) {
+        // 現在のペンのクラス名 (例: 'my-selection-o')
+        const penClass = `my-selection-${currentPen}`;
+        const bgClass = currentPen === 'o' ? 'bg-high' : (currentPen === 'tri' ? 'bg-mid' : 'bg-low');
 
-        // タップ（クリック）時の処理
-        matrixContainer.addEventListener('click', function(e) {
-            const target = e.target;
-            if (target.tagName === 'TD' || target.closest('td')) {
-                const td = target.tagName === 'TD' ? target : target.closest('td');
-                updateCell(td);
-            }
-        });
+        // まず、全ての選択クラスと背景色を一度リセットする（上書きのため）
+        td.classList.remove('my-selection-o', 'my-selection-tri', 'my-selection-x');
+        td.classList.remove('bg-high', 'bg-mid', 'bg-low', 'bg-none');
 
-        function updateCell(td) {
-            // ここで自分の入力を反映（枠線の色を変えるなど）
-            // 実際はDB更新処理が入る
-            td.className = ''; // 既存クラスリセット
-            if (currentPen === 'o') td.classList.add('my-selection-o', 'bg-high');
-            if (currentPen === 'tri') td.classList.add('my-selection-tri', 'bg-mid');
-            if (currentPen === 'x') td.classList.add('my-selection-x', 'bg-low');
+        if (action === 'paint') {
+            // 塗る場合
+            td.classList.add(penClass, bgClass);
+        } else {
+            // 消す場合 (何もクラスをつけない＝リセット)
+            // 必要なら元の集計色に戻すロジックをここに入れるが、今回は白(bg-none)にする
+            td.classList.add('bg-none');
         }
+    }
 
+    // --- タッチイベント (スマホ用) ---
+
+    // 1. タッチ開始：ここで「塗る」か「消す」かを決定する
+    matrixContainer.addEventListener('touchstart', function(e) {
+        if (!paintCheck.checked) return; // スクロールモードなら無視
+
+        const target = e.target.closest('td');
+        if (target) {
+            e.preventDefault(); // スクロール防止
+            
+            const penClass = `my-selection-${currentPen}`;
+            // 既にそのペンで塗られていれば「消すモード」、そうでなければ「塗るモード」
+            if (target.classList.contains(penClass)) {
+                dragAction = 'erase';
+            } else {
+                dragAction = 'paint';
+            }
+            
+            applyCellState(target, dragAction);
+            lastTouchedCell = target;
+        }
+    }, { passive: false });
+
+    // 2. タッチ移動：開始時のモードに従って連続適用
+    matrixContainer.addEventListener('touchmove', function(e) {
+        if (!paintCheck.checked || !dragAction) return;
+
+        e.preventDefault(); // スクロール防止
+        
+        // 指の位置にある要素を取得
+        const touch = e.touches[0];
+        const target = document.elementFromPoint(touch.clientX, touch.clientY);
+        const td = target ? target.closest('td') : null;
+
+        // まだ処理していない新しいセルに指が入ったら処理
+        if (td && td !== lastTouchedCell && matrixContainer.contains(td)) {
+            applyCellState(td, dragAction);
+            lastTouchedCell = td;
+        }
+    }, { passive: false });
+
+    // 3. タッチ終了：モードリセット
+    matrixContainer.addEventListener('touchend', function() {
+        dragAction = null;
+        lastTouchedCell = null;
+    });
+
+    // --- クリックイベント (PC用 / 単発タップ用) ---
+    // タッチデバイスでclickが重複発火しないよう簡単なガードを入れるか、
+    // PC操作用としてシンプルにトグルさせる
+    matrixContainer.addEventListener('click', function(e) {
+        // タッチ操作直後はclickイベントも飛んでくることがあるため、
+        // dragActionが走った直後なら無視する制御を入れても良いが、
+        // ここではシンプルに「PCでのクリック＝トグル」として実装
+        
+        // ※スマホの「なぞり入力モードON」のときはtouchstartで処理済みなので弾く
+        if (paintCheck.checked && e.pointerType === 'touch') return;
+
+        const td = e.target.closest('td');
+        if (td) {
+            const penClass = `my-selection-${currentPen}`;
+            // 既に選択済みなら消す、そうでなければ塗る（トグル）
+            if (td.classList.contains(penClass)) {
+                applyCellState(td, 'erase');
+            } else {
+                applyCellState(td, 'paint');
+            }
+        }
+    });
     </script>
 </body>
 </html>
