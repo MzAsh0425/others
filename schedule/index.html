@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>日程調整</title>
+    <style>
+        :root {
+            --cell-size: 50px;
+            --header-bg: #f8f9fa;
+            --border-color: #ddd;
+            --primary-color: #2c3e50;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            margin: 0;
+            padding: 0;
+            overscroll-behavior: none;
+            padding-bottom: 120px; /* 操作パネル用余白 */
+            background-color: #f4f4f9;
+            color: #333;
+        }
+
+        /* --- ヘッダーエリア --- */
+        .header {
+            padding: 15px;
+            background: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .event-title { margin: 0 0 10px 0; font-size: 1.2rem; text-align: center; color: #2c3e50; }
+        
+        .user-input-area {
+            display: flex;
+            gap: 10px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        input.name-input {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+        button.btn-save {
+            background-color: #2c3e50;
+            color: white;
+            border: none;
+            padding: 0 20px;
+            border-radius: 4px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        button.btn-save:disabled { background-color: #999; }
+
+        /* --- マトリクスエリア --- */
+        .matrix-container {
+            overflow: auto;
+            /* ヘッダーとフッターの分を引いた高さ */
+            height: calc(100vh - 200px); 
+            position: relative;
+            -webkit-user-select: none;
+            user-select: none;
+            background: white;
+        }
+
+        table {
+            border-collapse: separate; 
+            border-spacing: 0;
+            width: 100%;
+        }
+
+        th, td {
+            width: var(--cell-size);
+            height: var(--cell-size);
+            border-right: 1px solid var(--border-color);
+            border-bottom: 1px solid var(--border-color);
+            text-align: center;
+            font-size: 0.75rem;
+            padding: 0;
+            box-sizing: border-box;
+            vertical-align: middle;
+        }
+
+        /* 固定ヘッダー（日付） */
+        thead th {
+            position: sticky;
+            top: 0;
+            background: var(--header-bg);
+            z-index: 10;
+            font-weight: bold;
+            height: 40px;
+            border-bottom: 2px solid #ccc;
+        }
+        thead th:first-child { left: 0; z-index: 20; background: var(--header-bg); }
+
+        /* 固定カラム（時間） */
+        tbody th {
+            position: sticky;
+            left: 0;
+            background: var(--header-bg);
+            z-index: 5;
+            font-weight: normal;
+            font-size: 0.8rem;
+            border-right: 2px solid #ccc;
+        }
+
+        /* --- セル装飾 --- */
+        .disabled-cell {
+            background-color: #e9ecef !important;
+            background-image: linear-gradient(45deg, #ddd 25%, transparent 25%, transparent 50%, #ddd 50%, #ddd 75%, transparent 75%, transparent);
+            background-size: 10px 10px;
+            pointer-events: none; /* クリック不可 */
+        }
+
+        /* カウント表示 */
+        .cell-content {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            height: 100%;
+            line-height: 1.1;
+            font-size: 0.65rem;
+        }
+        .c-o { color: #006400; font-weight: bold; }
+        .c-tri { color: #b8860b; }
+        .c-x { color: #999; }
+
+        /* ヒートマップ背景色 */
+        .bg-high { background-color: #d4edda; } /* 緑 */
+        .bg-mid { background-color: #fff3cd; }  /* 黄 */
+        .bg-low { background-color: #f8d7da; }  /* 赤 */
+        .bg-none { background-color: #fff; }    /* 白 */
+
+        /* 自分の選択状態（枠線強調） */
+        .my-selection-o { box-shadow: inset 0 0 0 3px #28a745; }
+        .my-selection-tri { box-shadow: inset 0 0 0 3px #ffc107; }
+        .my-selection-x { box-shadow: inset 0 0 0 3px #dc3545; }
+
+        /* --- 操作パネル（フッター） --- */
+        .control-panel {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: white;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+            padding: 10px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 200;
+            box-sizing: border-box;
+            transition: transform 0.3s;
+        }
+        /* 入力モードOFFの時はパネルを下げる等の演出も可能だが今回は常時表示 */
+
+        .pen-group {
+            display: flex;
+            background: #eee;
+            border-radius: 20px;
+            padding: 4px;
+        }
+        .pen-btn {
+            border: none;
+            background: none;
+            padding: 10px 20px;
+            border-radius: 16px;
+            font-weight: bold;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .pen-btn.active { background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .pen-o.active { color: #28a745; }
+        .pen-tri.active { color: #ffc107; }
+        .pen-x.active { color: #dc3545; }
+
+        .mode-switch {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+        }
+        .switch-label { font-size: 0.7rem; font-weight: bold; color: #555; }
+        
+        .toggle {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 28px;
+        }
+        .toggle input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 22px; width: 22px;
+            left: 3px; bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider { background-color: #2c3e50; }
+        input:checked + .slider:before { transform: translateX(22px); }
+
+        /* 詳細モーダル */
+        #detailModal {
+            display: none;
+            position: fixed;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            z-index: 300;
+            width: 80%;
+            max-width: 300px;
+        }
+        #modalOverlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 250;
+        }
+        .modal-list { list-style: none; padding: 0; margin: 10px 0 0 0; max-height: 200px; overflow-y: auto;}
+        .modal-item { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #eee; }
+
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h2 class="event-title" id="eventTitle">読み込み中...</h2>
+        <div class="user-input-area">
+            <input type="text" id="userName" class="name-input" placeholder="あなたのお名前">
+            <button class="btn-save" id="btnSave">保存</button>
+        </div>
+        <div style="font-size:0.75rem; color:#666; text-align:center; margin-top:5px;">
+            <span id="statusMsg">データを読み込んでいます...</span>
+        </div>
+    </div>
+
+    <div class="matrix-container" id="matrix">
+        <table id="scheduleTable">
+            </table>
+    </div>
+
+    <div class="control-panel">
+        <div class="pen-group">
+            <button class="pen-btn pen-o active" onclick="setPen('o')">◯</button>
+            <button class="pen-btn pen-tri" onclick="setPen('tri')">△</button>
+            <button class="pen-btn pen-x" onclick="setPen('x')">×</button>
+        </div>
+
+        <div class="mode-switch">
+            <span class="switch-label">なぞり入力</span>
+            <label class="toggle">
+                <input type="checkbox" id="paintModeCheck">
+                <span class="slider"></span>
+            </label>
+        </div>
+    </div>
+
+    <div id="modalOverlay" onclick="closeModal()"></div>
+    <div id="detailModal">
+        <h3 id="modalTitle" style="margin:0; font-size:1rem;">日時詳細</h3>
+        <ul class="modal-list" id="modalList"></ul>
+        <button onclick="closeModal()" style="margin-top:15px; width:100%; padding:8px;">閉じる</button>
+    </div>
+
+    <script type="module">
+        // -----------------------------------------------------
+        // ▼▼▼ admin.html と同じ firebaseConfig をここに貼り付けてください ▼▼▼
+        // -----------------------------------------------------
+        const firebaseConfig = {
+          apiKey: "AIzaSyDjC31VRAcCWdnCtxz4mZMn5F8NAMe5h5o",
+          authDomain: "schedule-4e6db.firebaseapp.com",
+          projectId: "schedule-4e6db",
+          storageBucket: "schedule-4e6db.firebasestorage.app",
+          messagingSenderId: "1030849641074",
+          appId: "1:1030849641074:web:f9285a6b475d7ee540e0eb"
+        };
+        // -----------------------------------------------------
+
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, doc, getDoc, collection, setDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // --- DOM要素 ---
+        const eventTitleEl = document.getElementById('eventTitle');
+        const tableEl = document.getElementById('scheduleTable');
+        const statusMsg = document.getElementById('statusMsg');
+        const paintCheck = document.getElementById('paintModeCheck');
+        const matrixContainer = document.getElementById('matrix');
+        const btnSave = document.getElementById('btnSave');
+        const userNameInput = document.getElementById('userName');
+
+        // --- 状態管理変数 ---
+        let eventId = new URLSearchParams(window.location.search).get('id');
+        let candidates = [];
+        let allAnswers = {}; // { userId: { name: "...", matrix: {...} } }
+        let myMatrix = {};   // { "2024-01-01_10:00": "o" }
+        let currentPen = 'o';
+        
+        // なぞり入力用
+        let dragAction = null; 
+        let lastTouchedCell = null;
+
+        // グローバル関数への公開
+        window.setPen = (type) => {
+            currentPen = type;
+            document.querySelectorAll('.pen-btn').forEach(b => b.classList.remove('active'));
+            document.querySelector(`.pen-${type}`).classList.add('active');
+        };
+        window.closeModal = () => {
+            document.getElementById('detailModal').style.display = 'none';
+            document.getElementById('modalOverlay').style.display = 'none';
+        };
+
+        // --- 1. 初期化 & データ取得 ---
+        async function init() {
+            if (!eventId) {
+                eventTitleEl.innerText = "エラー: イベントIDがありません";
+                return;
+            }
+
+            // イベント情報の取得
+            try {
+                const eventRef = doc(db, "events", eventId);
+                const eventSnap = await getDoc(eventRef);
+
+                if (!eventSnap.exists()) {
+                    eventTitleEl.innerText = "エラー: イベントが見つかりません";
+                    return;
+                }
+
+                const eventData = eventSnap.data();
+                eventTitleEl.innerText = eventData.title;
+                candidates = eventData.candidates;
+
+                renderTableStructure();
+                
+                // 回答のリアルタイム監視
+                const answersRef = collection(db, "events", eventId, "answers");
+                onSnapshot(answersRef, (snapshot) => {
+                    allAnswers = {};
+                    snapshot.forEach(doc => {
+                        allAnswers[doc.id] = doc.data();
+                    });
+                    updateHeatmap();
+                    statusMsg.innerText = `${Object.keys(allAnswers).length}人の回答が集まっています`;
+                });
+
+                // 以前の自分の回答があれば復元 (LocalStorageにIDがあれば)
+                const savedUserId = localStorage.getItem(`uid_${eventId}`);
+                if (savedUserId && allAnswers[savedUserId]) {
+                    // ※onSnapshotが早いかここが早いか微妙ですが、ロード後に反映
+                    // 今回はシンプルに、名前欄が空ならLocalStorageの名前を入れる程度にします
+                    const savedName = localStorage.getItem(`name_${eventId}`);
+                    if(savedName) userNameInput.value = savedName;
+                }
+
+            } catch (e) {
+                console.error(e);
+                eventTitleEl.innerText = "読み込みエラー";
+            }
+        }
+
+        // --- 2. テーブル構造の描画 (admin.htmlのロジック流用) ---
+        function renderTableStructure() {
+            let minStart = 24, maxEnd = 0;
+            const uniqueDates = [...new Set(candidates.map(c => c.date))];
+            
+            candidates.forEach(c => {
+                if (c.start < minStart) minStart = c.start;
+                if (c.end > maxEnd) maxEnd = c.end;
+            });
+
+            let html = `<thead><tr><th style="width:50px;">時間</th>`;
+            uniqueDates.forEach(d => {
+                const dateStr = new Date(d).toLocaleDateString('ja-JP', {month:'numeric', day:'numeric', weekday:'short'});
+                html += `<th>${dateStr}</th>`;
+            });
+            html += `</tr></thead><tbody>`;
+
+            for (let t = minStart; t < maxEnd; t++) {
+                html += `<tr><th>${t}:00</th>`;
+                uniqueDates.forEach(date => {
+                    const isActive = candidates.some(c => c.date === date && t >= c.start && t < c.end);
+                    const cellKey = `${date}_${t}`; // データのキー
+
+                    if (isActive) {
+                        html += `<td data-key="${cellKey}" class="bg-none">
+                            <div class="cell-content">
+                                <span class="c-o">●0</span>
+                                <span class="c-tri">▲0</span>
+                                <span class="c-x">×0</span>
+                            </div>
+                        </td>`;
+                    } else {
+                        html += `<td class="disabled-cell"></td>`;
+                    }
+                });
+                html += `</tr>`;
+            }
+            html += `</tbody>`;
+            tableEl.innerHTML = html;
+        }
+
+        // --- 3. ヒートマップの更新 (集計ロジック) ---
+        function updateHeatmap() {
+            // 全セルをリセットして集計
+            // myMatrixの内容も反映させる（保存前でも見た目は変わるように）
+            
+            // 全回答 + 自分の現在入力(myMatrix) を合わせた集計をするには、
+            // 「自分の過去の保存済みデータ」を引いて「現在の入力」を足す必要があるが、
+            // 簡易的に「画面上の見た目」は CSS class (my-selection-*) で制御し、
+            // 「数字と背景色」は DB保存済みのデータ (allAnswers) だけで計算するのが安全。
+            
+            const counts = {}; // { "key": {o:0, tri:0, x:0} }
+
+            Object.values(allAnswers).forEach(ans => {
+                if (!ans.matrix) return;
+                Object.entries(ans.matrix).forEach(([key, val]) => {
+                    if (!counts[key]) counts[key] = {o:0, tri:0, x:0};
+                    if (val === 'o') counts[key].o++;
+                    if (val === 'tri') counts[key].tri++;
+                    if (val === 'x') counts[key].x++;
+                });
+            });
+
+            // DOM反映
+            document.querySelectorAll('td[data-key]').forEach(td => {
+                const key = td.dataset.key;
+                const c = counts[key] || {o:0, tri:0, x:0};
+                const total = c.o + c.tri + c.x;
+                
+                // コンテンツ更新
+                td.querySelector('.cell-content').innerHTML = `
+                    <span class="c-o">●${c.o}</span>
+                    <span class="c-tri">▲${c.tri}</span>
+                    <span class="c-x">×${c.x}</span>
+                `;
+
+                // 背景色判定 (参加率ベース)
+                td.classList.remove('bg-high', 'bg-mid', 'bg-low', 'bg-none');
+                if (total > 0) {
+                    // 参加率が高い(全員o)なら緑、xが多いなら赤、など簡易ロジック
+                    const score = c.o * 2 + c.tri * 1; // ポイント制
+                    const maxScore = Object.keys(allAnswers).length * 2;
+                    
+                    if (maxScore > 0 && score / maxScore > 0.8) td.classList.add('bg-high');
+                    else if (c.x > 0 && c.x > Object.keys(allAnswers).length / 2) td.classList.add('bg-low');
+                    else td.classList.add('bg-mid');
+                } else {
+                    td.classList.add('bg-none');
+                }
+            });
+        }
+
+        // --- 4. ユーザー操作: なぞり入力 & クリック ---
+        
+        function applyMyInput(td, action) {
+            const key = td.dataset.key;
+            
+            // クラスリセット
+            td.classList.remove('my-selection-o', 'my-selection-tri', 'my-selection-x');
+            
+            if (action === 'erase') {
+                delete myMatrix[key];
+            } else {
+                myMatrix[key] = currentPen;
+                td.classList.add(`my-selection-${currentPen}`);
+            }
+        }
+
+        // タッチ開始
+        matrixContainer.addEventListener('touchstart', function(e) {
+            if (!paintCheck.checked) return;
+            const td = e.target.closest('td');
+            if (td && !td.classList.contains('disabled-cell')) {
+                e.preventDefault();
+                const key = td.dataset.key;
+                const currentVal = myMatrix[key];
+                
+                // 既に同じ色が塗られていれば消すモード
+                if (currentVal === currentPen) {
+                    dragAction = 'erase';
+                } else {
+                    dragAction = 'paint';
+                }
+                applyMyInput(td, dragAction);
+                lastTouchedCell = td;
+            }
+        }, { passive: false });
+
+        // タッチ移動
+        matrixContainer.addEventListener('touchmove', function(e) {
+            if (!paintCheck.checked || !dragAction) return;
+            e.preventDefault();
+            const touch = e.touches[0];
+            const target = document.elementFromPoint(touch.clientX, touch.clientY);
+            const td = target ? target.closest('td') : null;
+
+            if (td && td !== lastTouchedCell && matrixContainer.contains(td) && !td.classList.contains('disabled-cell')) {
+                applyMyInput(td, dragAction);
+                lastTouchedCell = td;
+            }
+        }, { passive: false });
+
+        matrixContainer.addEventListener('touchend', () => { dragAction = null; lastTouchedCell = null; });
+
+        // クリック (PC / タップ詳細)
+        matrixContainer.addEventListener('click', function(e) {
+            // スクロールモード(paint OFF)なら詳細表示、ONならクリックで入力
+            const td = e.target.closest('td');
+            if (!td || td.classList.contains('disabled-cell')) return;
+
+            if (paintCheck.checked) {
+                // 入力モード (PCクリック対策)
+                const key = td.dataset.key;
+                if (myMatrix[key] === currentPen) applyMyInput(td, 'erase');
+                else applyMyInput(td, 'paint');
+            } else {
+                // 詳細表示モード
+                showDetailModal(td.dataset.key);
+            }
+        });
+
+        // --- 5. 詳細モーダル表示 ---
+        function showDetailModal(key) {
+            const [date, time] = key.split('_');
+            document.getElementById('modalTitle').innerText = `${date} ${time}:00 の状況`;
+            const list = document.getElementById('modalList');
+            list.innerHTML = "";
+
+            if (Object.keys(allAnswers).length === 0) {
+                list.innerHTML = "<li>回答はまだありません</li>";
+            }
+
+            Object.values(allAnswers).forEach(ans => {
+                const val = ans.matrix ? ans.matrix[key] : null;
+                let statusIcon = "－";
+                let color = "#ccc";
+                if(val === 'o') { statusIcon = "◯"; color = "green"; }
+                if(val === 'tri') { statusIcon = "△"; color = "#b8860b"; }
+                if(val === 'x') { statusIcon = "✕"; color = "red"; }
+
+                const li = document.createElement('li');
+                li.className = 'modal-item';
+                li.innerHTML = `<span>${ans.name || '名無し'}</span><span style="color:${color}; font-weight:bold;">${statusIcon}</span>`;
+                list.appendChild(li);
+            });
+
+            document.getElementById('detailModal').style.display = 'block';
+            document.getElementById('modalOverlay').style.display = 'block';
+        }
+
+        // --- 6. 保存処理 ---
+        btnSave.addEventListener('click', async () => {
+            const name = userNameInput.value.trim();
+            if (!name) { alert("お名前を入力してください"); return; }
+            if (Object.keys(myMatrix).length === 0) { 
+                if(!confirm("日程がひとつも選択されていませんが、このまま保存しますか？")) return;
+            }
+
+            btnSave.disabled = true;
+            btnSave.innerText = "保存中...";
+
+            try {
+                // ユーザーIDの生成・取得 (ブラウザごとに固定)
+                let uid = localStorage.getItem(`uid_${eventId}`);
+                if (!uid) {
+                    uid = 'user_' + Math.random().toString(36).substr(2, 9);
+                    localStorage.setItem(`uid_${eventId}`, uid);
+                }
+                localStorage.setItem(`name_${eventId}`, name);
+
+                const docRef = doc(db, "events", eventId, "answers", uid);
+                await setDoc(docRef, {
+                    name: name,
+                    matrix: myMatrix,
+                    updatedAt: serverTimestamp()
+                });
+
+                alert("保存しました！");
+            } catch (e) {
+                console.error(e);
+                alert("保存に失敗しました");
+            } finally {
+                btnSave.disabled = false;
+                btnSave.innerText = "保存";
+            }
+        });
+
+        // 実行開始
+        init();
+
+    </script>
+</body>
+</html>
