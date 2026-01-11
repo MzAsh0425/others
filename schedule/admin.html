@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>イベント作成 - スマート日程調整</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: #f4f4f9;
+            padding: 20px;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        h1 { font-size: 1.5rem; color: #2c3e50; }
+        
+        /* 入力フォームエリア */
+        .form-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .input-group { margin-bottom: 15px; }
+        label { display: block; font-weight: bold; margin-bottom: 5px; font-size: 0.9rem; }
+        input[type="text"], input[type="date"], select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 1rem;
+            box-sizing: border-box;
+        }
+
+        /* 日時追加エリア */
+        .date-adder {
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+            background: #eef2f5;
+            padding: 15px;
+            border-radius: 8px;
+        }
+        .date-adder > div { flex: 1; }
+        
+        button.btn-add {
+            background-color: #2c3e50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        button.btn-create {
+            width: 100%;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            padding: 15px;
+            border-radius: 4px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+
+        /* 追加されたリスト */
+        .candidate-list {
+            list-style: none;
+            padding: 0;
+            margin-top: 15px;
+        }
+        .candidate-item {
+            display: flex;
+            justify-content: space-between;
+            background: white;
+            border-bottom: 1px solid #eee;
+            padding: 10px;
+            align-items: center;
+        }
+        .btn-delete {
+            color: #dc3545;
+            background: none;
+            border: 1px solid #dc3545;
+            border-radius: 4px;
+            padding: 2px 8px;
+            cursor: pointer;
+        }
+
+        /* --- プレビューテーブル --- */
+        .preview-area {
+            margin-top: 30px;
+        }
+        .preview-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            font-size: 0.85rem;
+        }
+        .preview-table th, .preview-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+            width: 60px;
+        }
+        .preview-table th { background: #2c3e50; color: white; }
+        .preview-table td.disabled-cell {
+            background-color: #e9ecef; /* グレーアウト */
+            background-image: linear-gradient(45deg, #ddd 25%, transparent 25%, transparent 50%, #ddd 50%, #ddd 75%, transparent 75%, transparent);
+            background-size: 10px 10px;
+            color: #aaa;
+            cursor: not-allowed;
+        }
+        .preview-table td.active-cell {
+            background-color: #fff;
+            color: #333;
+        }
+
+    </style>
+</head>
+<body>
+
+    <h1>📅 イベント作成</h1>
+    <p style="font-size:0.9rem; color:#666;">候補日と時間帯を追加してください。入力された時間の範囲に合わせて表が自動生成されます。</p>
+
+    <div class="form-card">
+        <div class="input-group">
+            <label>イベント名</label>
+            <input type="text" id="eventTitle" placeholder="例：第3回 開発定例">
+        </div>
+
+        <label>候補日時の追加</label>
+        <div class="date-adder">
+            <div style="flex: 2;">
+                <label style="font-size:0.8rem;">日付</label>
+                <input type="date" id="inputDate">
+            </div>
+            <div>
+                <label style="font-size:0.8rem;">開始</label>
+                <select id="inputStart">
+                    </select>
+            </div>
+            <div style="display:flex; align-items:center; justify-content:center; padding-bottom:10px;">
+                ～
+            </div>
+            <div>
+                <label style="font-size:0.8rem;">終了</label>
+                <select id="inputEnd">
+                    </select>
+            </div>
+            <button class="btn-add" onclick="addCandidate()">追加</button>
+        </div>
+
+        <ul class="candidate-list" id="candidateList">
+            </ul>
+    </div>
+
+    <div class="preview-area" id="previewArea" style="display:none;">
+        <h3>👀 生成される表のプレビュー</h3>
+        <div style="overflow-x:auto;">
+            <table class="preview-table" id="previewTable">
+                </table>
+        </div>
+    </div>
+
+    <button class="btn-create" onclick="createEvent()">イベントを作成する</button>
+
+    <script>
+        // --- 設定 ---
+        const listEl = document.getElementById('candidateList');
+        const previewArea = document.getElementById('previewArea');
+        const previewTable = document.getElementById('previewTable');
+        
+        // 候補データ管理用配列
+        let candidates = []; 
+
+        // セレクトボックスの初期化 (0時〜23時)
+        const startSel = document.getElementById('inputStart');
+        const endSel = document.getElementById('inputEnd');
+        for(let i=9; i<=22; i++) { // よく使う時間帯をデフォルトに（9時〜22時）
+            const opt = `<option value="${i}">${i}:00</option>`;
+            startSel.innerHTML += opt;
+            endSel.innerHTML += opt;
+        }
+        startSel.value = "10";
+        endSel.value = "18";
+
+        // 本日の日付をセット
+        document.getElementById('inputDate').valueAsDate = new Date();
+
+
+        // --- 候補追加処理 ---
+        function addCandidate() {
+            const dateVal = document.getElementById('inputDate').value;
+            const startVal = parseInt(document.getElementById('inputStart').value);
+            const endVal = parseInt(document.getElementById('inputEnd').value);
+
+            if (!dateVal) { alert("日付を選択してください"); return; }
+            if (startVal >= endVal) { alert("開始時間は終了時間より前に設定してください"); return; }
+
+            // データ追加
+            candidates.push({
+                date: dateVal,
+                start: startVal,
+                end: endVal
+            });
+
+            // 日付順にソート
+            candidates.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+            renderList();
+            renderPreview();
+        }
+
+        // --- リスト描画 ---
+        function renderList() {
+            listEl.innerHTML = "";
+            candidates.forEach((c, index) => {
+                const li = document.createElement('li');
+                li.className = "candidate-item";
+                li.innerHTML = `
+                    <span><strong>${c.date}</strong> ${c.start}:00 ～ ${c.end}:00</span>
+                    <button class="btn-delete" onclick="removeCandidate(${index})">削除</button>
+                `;
+                listEl.appendChild(li);
+            });
+        }
+
+        function removeCandidate(index) {
+            candidates.splice(index, 1);
+            renderList();
+            renderPreview();
+        }
+
+        // --- プレビュー生成ロジック（ここがキモです） ---
+        function renderPreview() {
+            if (candidates.length === 0) {
+                previewArea.style.display = 'none';
+                return;
+            }
+            previewArea.style.display = 'block';
+
+            // 1. 全体の最小開始時間と最大終了時間を求める（ユニオン）
+            let minStart = 24;
+            let maxEnd = 0;
+            
+            // 重複する日付をまとめるマップ（同日に複数の時間枠がある場合の考慮）
+            // 今回は簡易化のため、同日の場合は「和集合」を取る等の処理が必要だが、
+            // シンプルに「日付」を列のキーとする
+            const uniqueDates = [...new Set(candidates.map(c => c.date))];
+            
+            candidates.forEach(c => {
+                if (c.start < minStart) minStart = c.start;
+                if (c.end > maxEnd) maxEnd = c.end;
+            });
+
+            // 2. テーブルヘッダー生成
+            let html = `<thead><tr><th>時間</th>`;
+            uniqueDates.forEach(d => {
+                // 日付整形 (YYYY-MM-DD -> MM/DD)
+                const dateStr = new Date(d).toLocaleDateString('ja-JP', {month:'numeric', day:'numeric', weekday:'short'});
+                html += `<th>${dateStr}</th>`;
+            });
+            html += `</tr></thead><tbody>`;
+
+            // 3. 行（時間）ごとのループ
+            for (let t = minStart; t < maxEnd; t++) {
+                html += `<tr>`;
+                html += `<th>${t}:00</th>`; // 時間ラベル
+
+                // 列（日付）ごとの判定
+                uniqueDates.forEach(date => {
+                    // この日付(date)かつ、今の時間(t)が含まれる候補設定があるか？
+                    const isActive = candidates.some(c => 
+                        c.date === date && t >= c.start && t < c.end
+                    );
+
+                    if (isActive) {
+                        html += `<td class="active-cell">◯</td>`;
+                    } else {
+                        html += `<td class="disabled-cell"></td>`; // グレーアウト
+                    }
+                });
+                html += `</tr>`;
+            }
+            html += `</tbody>`;
+            previewTable.innerHTML = html;
+        }
+
+        // --- イベント作成処理（ダミー） ---
+        function createEvent() {
+            const title = document.getElementById('eventTitle').value;
+            if(!title) { alert("イベント名を入力してください"); return; }
+            if(candidates.length === 0) { alert("候補日時を追加してください"); return; }
+
+            console.log("作成データ:", { title, candidates });
+            alert("プレビュー通りのデータ構造を作成しました！\n（実際はここでFirebaseに保存し、URLを発行します）");
+        }
+    </script>
+</body>
+</html>
