@@ -150,6 +150,69 @@
             background-color: #dc3545; color: white; padding: 4px 8px; border: none; border-radius: 4px; font-size: 0.8rem; cursor: pointer; margin-left: 10px;
         }
 
+    /* --- 自作アラート用のスタイル --- */
+
+    /* 画面全体を覆う半透明の膜 */
+    .modal-overlay {
+        display: none; /* 初期状態は非表示 */
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5); /* 半透明の黒 */
+        z-index: 1000; /* 最前面に表示 */
+        justify-content: center;
+        align-items: center;
+    }
+    
+    /* ポップアップの白い箱 */
+    .modal-box {
+        background: white;
+        padding: 20px 30px;
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        text-align: center;
+        max-width: 80%; /* スマホではみ出さないように */
+        width: 300px;   /* 程よい幅 */
+        animation: fadeIn 0.2s ease-out; /* ふわっと表示するアニメーション */
+    }
+    
+    /* メッセージテキスト */
+    .modal-text {
+        font-size: 1rem;
+        color: #333;
+        margin: 0 0 20px 0;
+        line-height: 1.5;
+        white-space: pre-wrap; /* 改行コード(\n)を反映させる設定 */
+    }
+    
+    /* OKボタン */
+    .modal-btn {
+        background-color: var(--primary-color);
+        color: white;
+        border: none;
+        padding: 10px 25px;
+        border-radius: 6px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+    .modal-btn:hover {
+        opacity: 0.9;
+    }
+    
+    /* ふわっと表示するアニメーション定義 */
+    @keyframes fadeIn {
+        from { opacity: 0; transform: scale(0.9); }
+        to { opacity: 1; transform: scale(1); }
+    }
+    
+    /* モーダル表示時に発動するクラス（JSで付与） */
+    .modal-overlay.is-active {
+        display: flex; /* flexで中央揃えにする */
+    }
+
     </style>
 </head>
 <body>
@@ -243,7 +306,32 @@
         <button class="modal-close" onclick="closeAllModals()">閉じる</button>
     </div>
 
+    <div id="customAlertOverlay" class="modal-overlay">
+        <div class="modal-box">
+            <p id="customAlertMessage" class="modal-text"></p>
+            <button class="modal-btn" onclick="closeCustomAlert()">OK</button>
+        </div>
+    </div>
+
     <script type="module">
+        
+        // --- 自作アラートの制御 ---
+        const modalOverlay = document.getElementById('customAlertOverlay');
+        const modalMessage = document.getElementById('customAlertMessage');
+    
+        // ブラウザ標準の alert 関数を上書きする
+        window.alert = function(message) {
+            // メッセージをセットして
+            modalMessage.textContent = message;
+            // モーダルを表示する（is-activeクラスを付ける）
+            modalOverlay.classList.add('is-active');
+        };
+    
+        // モーダルを閉じる関数（グローバルスコープに公開）
+        window.closeCustomAlert = function() {
+            modalOverlay.classList.remove('is-active');
+        };
+        
         // -----------------------------------------------------
         // ▼▼▼ admin.html と同じ firebaseConfig をここに貼り付けてください ▼▼▼
         // -----------------------------------------------------
