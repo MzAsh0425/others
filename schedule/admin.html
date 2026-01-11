@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>イベント作成 - スマート日程調整</title>
     <style>
+        /* --- デザイン設定（前回確定したCSSと同じ） --- */
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             background-color: #f4f4f9;
@@ -32,82 +33,50 @@
             font-size: 1rem;
             box-sizing: border-box;
             background: #fff;
-            -webkit-appearance: none; /* iOSでのデフォルトスタイル対策 */
+            -webkit-appearance: none;
             appearance: none;
-            min-height: 44px; /* スマホでタップしやすい高さ */
+            min-height: 44px;
         }
 
-        /* --- 日時追加エリア（レスポンシブ対応版） --- */
+        /* レスポンシブ対応レイアウト */
         .date-adder {
             display: flex;
             flex-wrap: wrap;
             gap: 15px;
-            align-items: flex-end; /* PCでは下揃え */
+            align-items: flex-end;
             background: #eef2f5;
             padding: 15px;
             border-radius: 8px;
         }
-
-        /* PC表示時の設定 */
-        .field-date {
-            flex: 1 1 160px; /* 最小160px */
-        }
+        .field-date { flex: 1 1 160px; }
         .field-time-range {
-            flex: 2 1 220px; /* 最小220px */
+            flex: 2 1 220px;
             display: flex;
             align-items: center;
-            gap: 10px; /* PCでの開始・終了の間隔 */
+            gap: 10px;
         }
         .field-time-range select { flex: 1; }
-        
-        .field-btn {
-            flex: 0 0 auto;
-        }
+        .field-btn { flex: 0 0 auto; }
 
         button.btn-add {
             background-color: #2c3e50;
             color: white;
             border: none;
             padding: 0 25px;
-            height: 44px; /* 入力欄と高さを揃える */
+            height: 44px;
             border-radius: 4px;
             cursor: pointer;
             font-weight: bold;
             white-space: nowrap;
         }
         
-        /* --- スマホ表示の修正（ここが重要） --- */
         @media (max-width: 500px) {
-            .date-adder {
-                flex-direction: column; /* 縦積みに */
-                align-items: stretch;   /* 横幅いっぱいに */
-                gap: 15px;
-            }
-
-            /* ここでPC用のflex設定（高さになってしまうもの）をリセット */
-            .field-date, .field-time-range, .field-btn {
-                flex: 0 0 auto; 
-                width: 100%;
-            }
-
-            /* 時間範囲エリアの調整 */
-            .field-time-range {
-                display: flex;
-                align-items: center; /* 垂直方向中央揃え */
-                gap: 8px;
-            }
-            /* 「〜」の記号がズレないように調整 */
-            .field-time-range div:nth-child(2) {
-                padding-top: 0 !important; /* 余計なパディング削除 */
-                padding: 0 5px;
-            }
-
-            button.btn-add {
-                width: 100%;
-                margin-top: 5px;
-            }
+            .date-adder { flex-direction: column; align-items: stretch; gap: 15px; }
+            .field-date, .field-time-range, .field-btn { flex: 0 0 auto; width: 100%; }
+            .field-time-range { gap: 8px; }
+            .field-time-range div:nth-child(2) { padding-top: 0 !important; padding: 0 5px; }
+            button.btn-add { width: 100%; margin-top: 5px; }
         }
-        /* ------------------------------------------------ */
 
         button.btn-create {
             width: 100%;
@@ -121,12 +90,9 @@
             cursor: pointer;
             margin-top: 20px;
         }
+        button.btn-create:disabled { background-color: #ccc; cursor: not-allowed; }
 
-        .candidate-list {
-            list-style: none;
-            padding: 0;
-            margin-top: 15px;
-        }
+        .candidate-list { list-style: none; padding: 0; margin-top: 15px; }
         .candidate-item {
             display: flex;
             justify-content: space-between;
@@ -167,6 +133,18 @@
             background-size: 10px 10px;
         }
         .preview-table td.active-cell { background-color: #fff; }
+        
+        /* 完了後のURL表示エリア */
+        #resultArea {
+            display: none;
+            margin-top: 30px;
+            background: #d4edda;
+            color: #155724;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #c3e6cb;
+            word-break: break-all;
+        }
     </style>
 </head>
 <body>
@@ -187,68 +165,97 @@
                 <input type="date" id="inputDate">
             </div>
             <div class="field-time-range">
-                <div style="flex:1">
-                    <label style="font-size:0.8rem;">開始</label>
-                    <select id="inputStart"></select>
-                </div>
-                <div style="padding-top:18px;">～</div>
-                <div style="flex:1">
-                    <label style="font-size:0.8rem;">終了</label>
-                    <select id="inputEnd"></select>
-                </div>
+                <div style="flex:1"><label style="font-size:0.8rem;">開始</label><select id="inputStart"></select></div>
+                <div>～</div>
+                <div style="flex:1"><label style="font-size:0.8rem;">終了</label><select id="inputEnd"></select></div>
             </div>
             <div class="field-btn">
-                <button class="btn-add" onclick="addCandidate()">追加</button>
+                <button class="btn-add" id="btnAdd">追加</button>
             </div>
         </div>
-
         <ul class="candidate-list" id="candidateList"></ul>
     </div>
 
     <div class="preview-area" id="previewArea" style="display:none;">
         <h3>👀 プレビュー</h3>
-        <div style="overflow-x:auto;">
-            <table class="preview-table" id="previewTable"></table>
-        </div>
+        <div style="overflow-x:auto;"><table class="preview-table" id="previewTable"></table></div>
     </div>
 
-    <button class="btn-create" onclick="createEvent()">イベントを作成する</button>
+    <button class="btn-create" id="btnCreate">イベントを作成する</button>
 
-    <script>
+    <div id="resultArea">
+        <strong>✅ イベントを作成しました！</strong><br>
+        以下のURLをメンバーに共有してください：<br><br>
+        <a href="#" id="shareLink" target="_blank" style="font-weight:bold; font-size:1.2rem;"></a>
+    </div>
+
+    <script type="module">
+        // -----------------------------------------------------
+        // ▼▼▼ ここにご自身のfirebaseConfigを貼り付けてください ▼▼▼
+        // -----------------------------------------------------
+        const firebaseConfig = {
+            apiKey: "AIzaSyDjC31VRAcCWdnCtxz4mZMn5F8NAMe5h5o",
+            authDomain: "schedule-4e6db.firebaseapp.com",
+            projectId: "schedule-4e6db",
+            storageBucket: "schedule-4e6db.firebasestorage.app",
+            messagingSenderId: "1030849641074",
+            appId: "1:1030849641074:web:f9285a6b475d7ee540e0eb"
+          };
+                // -----------------------------------------------------
+
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        // Firebase初期化
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // --- 変数・要素取得 ---
         const listEl = document.getElementById('candidateList');
         const previewArea = document.getElementById('previewArea');
         const previewTable = document.getElementById('previewTable');
+        const btnAdd = document.getElementById('btnAdd');
+        const btnCreate = document.getElementById('btnCreate');
+        const resultArea = document.getElementById('resultArea');
+        const shareLink = document.getElementById('shareLink');
         
         let candidates = []; 
 
-        // --- 修正箇所：0時から23時までループ ---
+        // --- 初期化処理 ---
         const startSel = document.getElementById('inputStart');
         const endSel = document.getElementById('inputEnd');
         for(let i=0; i<=23; i++) { 
-            const val = i; // 単純な数値を使用
-            const text = i + ":00";
-            const opt = `<option value="${val}">${text}</option>`;
+            const opt = `<option value="${i}">${i}:00</option>`;
             startSel.innerHTML += opt;
             endSel.innerHTML += opt;
         }
-        // デフォルト値をセット（例: 10:00 〜 18:00）
         startSel.value = "10";
         endSel.value = "18";
-
         document.getElementById('inputDate').valueAsDate = new Date();
 
+        // --- イベントリスナー設定 (Moduleなのでwindow関数ではなくaddEventListenerを使う) ---
+        btnAdd.addEventListener('click', addCandidate);
+        btnCreate.addEventListener('click', createEvent);
+
+        // --- 関数定義 ---
         function addCandidate() {
             const dateVal = document.getElementById('inputDate').value;
             const startVal = parseInt(document.getElementById('inputStart').value);
             const endVal = parseInt(document.getElementById('inputEnd').value);
 
             if (!dateVal) { alert("日付を選択してください"); return; }
-            // 同じ時間や逆転はエラーにするが、0時〜23時の範囲内ならOK
             if (startVal >= endVal) { alert("終了時間は開始時間より後にしてください"); return; }
 
             candidates.push({ date: dateVal, start: startVal, end: endVal });
             candidates.sort((a, b) => new Date(a.date) - new Date(b.date));
 
+            renderList();
+            renderPreview();
+        }
+
+        // リストから削除（グローバルスコープからアクセスできるように工夫）
+        window.removeCandidate = function(index) {
+            candidates.splice(index, 1);
             renderList();
             renderPreview();
         }
@@ -260,16 +267,10 @@
                 li.className = "candidate-item";
                 li.innerHTML = `
                     <span><strong>${c.date}</strong> ${c.start}:00 ～ ${c.end}:00</span>
-                    <button class="btn-delete" onclick="removeCandidate(${index})">削除</button>
+                    <button class="btn-delete" onclick="window.removeCandidate(${index})">削除</button>
                 `;
                 listEl.appendChild(li);
             });
-        }
-
-        function removeCandidate(index) {
-            candidates.splice(index, 1);
-            renderList();
-            renderPreview();
         }
 
         function renderPreview() {
@@ -312,12 +313,50 @@
             previewTable.innerHTML = html;
         }
 
-        function createEvent() {
+        // --- ★★★ DB保存処理 ★★★ ---
+        async function createEvent() {
             const title = document.getElementById('eventTitle').value;
             if(!title) { alert("イベント名を入力してください"); return; }
             if(candidates.length === 0) { alert("候補日時を追加してください"); return; }
-            console.log("作成データ:", { title, candidates });
-            alert("作成完了！(DB保存処理へ)");
+
+            // ボタンを無効化（連打防止）
+            btnCreate.disabled = true;
+            btnCreate.innerText = "作成中...";
+
+            try {
+                // Firestoreの 'events' コレクションにデータを追加
+                const docRef = await addDoc(collection(db, "events"), {
+                    title: title,
+                    candidates: candidates, // 配列データをそのまま保存
+                    createdAt: serverTimestamp()
+                });
+
+                console.log("Document written with ID: ", docRef.id);
+
+                // 完了表示
+                resultArea.style.display = "block";
+                
+                // 共有URLの生成（回答用ページのファイル名を index.html と仮定）
+                // ローカル開発でも動くよう、現在のパスを取得して書き換え
+                const currentUrl = window.location.href; 
+                // admin.html を index.html に置換（もし同じフォルダにあるなら）
+                const answerPageUrl = currentUrl.replace('admin.html', 'index.html') + "?id=" + docRef.id;
+                
+                shareLink.href = answerPageUrl;
+                shareLink.innerText = answerPageUrl;
+
+                // フォームを隠す
+                document.querySelector('.form-card').style.display = 'none';
+                btnCreate.style.display = 'none';
+                previewArea.style.display = 'none';
+                document.querySelector('h1').innerText = "🎉 作成完了";
+
+            } catch (e) {
+                console.error("Error adding document: ", e);
+                alert("エラーが発生しました: " + e);
+                btnCreate.disabled = false;
+                btnCreate.innerText = "イベントを作成する";
+            }
         }
     </script>
 </body>
