@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>スマホ特化日程調整</title>
+    <style>
+        :root {
+            --cell-size: 50px;
+            --header-bg: #f8f9fa;
+            --border-color: #ddd;
+            --primary-color: #2c3e50;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            margin: 0;
+            padding: 0;
+            overscroll-behavior: none; /* バウンススクロール防止 */
+            padding-bottom: 100px; /* 操作パネル用余白 */
+        }
+
+        /* --- 固定ヘッダー --- */
+        .header {
+            padding: 15px;
+            background: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        h2 { margin: 0; font-size: 1.1rem; text-align: center; }
+
+        /* --- マトリクスエリア --- */
+        .matrix-container {
+            overflow: auto;
+            max-height: calc(100vh - 180px); /* 画面内に収める */
+            position: relative;
+            -webkit-user-select: none; /* 文字選択防止 */
+            user-select: none;
+        }
+
+        table {
+            border-collapse: separate; 
+            border-spacing: 0;
+            width: 100%;
+        }
+
+        th, td {
+            width: var(--cell-size);
+            height: var(--cell-size);
+            border-right: 1px solid var(--border-color);
+            border-bottom: 1px solid var(--border-color);
+            text-align: center;
+            font-size: 0.75rem;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        /* 固定ヘッダー（日付） */
+        thead th {
+            position: sticky;
+            top: 0;
+            background: var(--header-bg);
+            z-index: 10;
+            font-weight: bold;
+            height: 40px;
+            vertical-align: middle;
+            border-bottom: 2px solid #ccc;
+        }
+        /* 左上の角 */
+        thead th:first-child {
+            left: 0;
+            z-index: 20;
+            background: var(--header-bg);
+        }
+
+        /* 固定カラム（時間） */
+        tbody th {
+            position: sticky;
+            left: 0;
+            background: var(--header-bg);
+            z-index: 5;
+            font-weight: normal;
+            font-size: 0.8rem;
+            border-right: 2px solid #ccc;
+        }
+
+        /* --- セルのデザイン（ご要望のカウント表示） --- */
+        .cell-content {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            height: 100%;
+            line-height: 1.1;
+        }
+        .count-row { font-size: 0.65rem; }
+        .c-o { color: #008000; font-weight: bold; }
+        .c-tri { color: #d4a017; }
+        .c-x { color: #aaa; }
+
+        /* 背景色のヒートマップ（例） */
+        .bg-high { background-color: #d4edda; } /* 緑 */
+        .bg-mid { background-color: #fff3cd; }  /* 黄 */
+        .bg-low { background-color: #f8d7da; }  /* 赤 */
+        .bg-none { background-color: #fff; }
+
+        /* 自分の選択状態の強調 */
+        .my-selection-o { border: 2px solid #28a745; }
+        .my-selection-tri { border: 2px solid #ffc107; }
+        .my-selection-x { border: 2px solid #dc3545; }
+
+        /* --- 操作パネル（画面下部固定） --- */
+        .control-panel {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: white;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+            padding: 10px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 200;
+            box-sizing: border-box;
+        }
+
+        /* ペン切り替えスイッチ */
+        .pen-group {
+            display: flex;
+            background: #eee;
+            border-radius: 20px;
+            padding: 4px;
+        }
+        .pen-btn {
+            border: none;
+            background: none;
+            padding: 8px 16px;
+            border-radius: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .pen-btn.active { background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .pen-o.active { color: #28a745; }
+        .pen-tri.active { color: #ffc107; }
+        .pen-x.active { color: #dc3545; }
+
+        /* モード切替スイッチ（スクロール vs 塗りつぶし） */
+        .mode-switch {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .switch-label { font-size: 0.85rem; font-weight: bold; color: #555; }
+        
+        /* トグルスイッチ */
+        .toggle {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 28px;
+        }
+        .toggle input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 20px; width: 20px;
+            left: 4px; bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider { background-color: #2196F3; }
+        input:checked + .slider:before { transform: translateX(22px); }
+
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h2>日程入力・確認</h2>
+        <div style="font-size:0.8rem; color:#666; text-align:center;">
+            「なぞって入力」ONで指でなぞると連続入力できます
+        </div>
+    </div>
+
+    <div class="matrix-container" id="matrix">
+        <table>
+            <thead>
+                <tr>
+                    <th>時間</th>
+                    <th>1/15<br>(月)</th>
+                    <th>1/16<br>(火)</th>
+                    <th>1/17<br>(水)</th>
+                    <th>1/18<br>(木)</th>
+                    <th>1/19<br>(金)</th>
+                </tr>
+            </thead>
+            <tbody>
+                </tbody>
+        </table>
+    </div>
+
+    <div class="control-panel">
+        <div class="pen-group">
+            <button class="pen-btn pen-o active" onclick="setPen('o')">◯</button>
+            <button class="pen-btn pen-tri" onclick="setPen('tri')">△</button>
+            <button class="pen-btn pen-x" onclick="setPen('x')">×</button>
+        </div>
+
+        <div class="mode-switch">
+            <span class="switch-label">なぞり入力</span>
+            <label class="toggle">
+                <input type="checkbox" id="paintModeCheck">
+                <span class="slider"></span>
+            </label>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. テーブル生成ロジック ---
+        const times = ["10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00"];
+        const cols = 5; // 月〜金
+        const tbody = document.querySelector('tbody');
+
+        times.forEach(time => {
+            const tr = document.createElement('tr');
+            // 時間ヘッダー
+            const th = document.createElement('th');
+            th.innerText = time;
+            tr.appendChild(th);
+
+            // 各セル
+            for(let i=0; i<cols; i++) {
+                const td = document.createElement('td');
+                td.className = 'bg-mid'; // 仮の背景色（集計結果イメージ）
+                
+                // ご要望の「3行カウント表示」
+                // 実際はDBから取得した値を入れます。ここはダミー。
+                td.innerHTML = `
+                    <div class="cell-content">
+                        <span class="count-row c-o">●${Math.floor(Math.random()*5)}</span>
+                        <span class="count-row c-tri">▲${Math.floor(Math.random()*2)}</span>
+                        <span class="count-row c-x">×${Math.floor(Math.random()*2)}</span>
+                    </div>
+                `;
+                
+                // タッチイベント用属性
+                td.dataset.selected = "false"; 
+                tr.appendChild(td);
+            }
+            tbody.appendChild(tr);
+        });
+
+        // --- 2. なぞって入力（Paint Mode）の実装 ---
+        let currentPen = 'o';
+        const paintCheck = document.getElementById('paintModeCheck');
+        const matrixContainer = document.getElementById('matrix');
+
+        function setPen(type) {
+            currentPen = type;
+            document.querySelectorAll('.pen-btn').forEach(b => b.classList.remove('active'));
+            document.querySelector(`.pen-${type}`).classList.add('active');
+        }
+
+        // スマホでのドラッグ処理
+        // "touchmove" イベントを使って指の下にある要素を特定する
+        matrixContainer.addEventListener('touchmove', function(e) {
+            if (!paintCheck.checked) return; // ペイントモードOFFならスクロールさせる
+
+            e.preventDefault(); // スクロール禁止（これが重要）
+
+            // 指の位置にある要素を取得
+            const touch = e.touches[0];
+            const target = document.elementFromPoint(touch.clientX, touch.clientY);
+
+            if (target && (target.tagName === 'TD' || target.closest('td'))) {
+                const td = target.tagName === 'TD' ? target : target.closest('td');
+                updateCell(td);
+            }
+        }, { passive: false });
+
+        // タップ（クリック）時の処理
+        matrixContainer.addEventListener('click', function(e) {
+            const target = e.target;
+            if (target.tagName === 'TD' || target.closest('td')) {
+                const td = target.tagName === 'TD' ? target : target.closest('td');
+                updateCell(td);
+            }
+        });
+
+        function updateCell(td) {
+            // ここで自分の入力を反映（枠線の色を変えるなど）
+            // 実際はDB更新処理が入る
+            td.className = ''; // 既存クラスリセット
+            if (currentPen === 'o') td.classList.add('my-selection-o', 'bg-high');
+            if (currentPen === 'tri') td.classList.add('my-selection-tri', 'bg-mid');
+            if (currentPen === 'x') td.classList.add('my-selection-x', 'bg-low');
+        }
+
+    </script>
+</body>
+</html>
