@@ -12,21 +12,27 @@
             --primary-color: #2c3e50;
             --accent-color: #007bff;
         }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        
+        /* --- 【修正】画面全体の固定設定 --- */
+        html, body {
+            height: 100%; /* 画面の高さを100%に固定 */
             margin: 0; padding: 0;
-            overscroll-behavior: none;
-            padding-bottom: 120px;
+            overflow: hidden; /* 画面全体のスクロールを禁止 */
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             background-color: #f4f4f9;
             color: #333;
+            /* Flexboxで縦並びレイアウトを作る */
+            display: flex;
+            flex-direction: column;
         }
 
-        /* --- ヘッダー --- */
+        /* --- ヘッダー（固定エリア） --- */
         .header {
+            flex: 0 0 auto; /* 高さは中身に合わせて固定 */
             padding: 10px 15px;
             background: white;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            position: sticky; top: 0; z-index: 100;
+            z-index: 100;
         }
         .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
         .event-title { margin: 0; font-size: 1.1rem; color: #2c3e50; font-weight: bold; }
@@ -40,8 +46,22 @@
         button.btn-save { background-color: var(--primary-color); color: white; border: none; padding: 0 20px; border-radius: 4px; font-weight: bold; cursor: pointer; white-space: nowrap; }
         button.btn-save:disabled { background-color: #999; }
 
-        /* --- マトリクス --- */
-        .matrix-container { overflow: auto; height: calc(100vh - 180px); position: relative; -webkit-user-select: none; user-select: none; background: white; }
+        /* --- 【修正】マトリクスエリア（スクロールエリア） --- */
+        .matrix-container {
+            flex: 1; /* 残りの高さを全て使う */
+            overflow: auto; /* ここだけスクロール許可 */
+            position: relative;
+            -webkit-user-select: none; user-select: none;
+            background: white;
+            
+            /* スクロールのバウンス対策 */
+            overscroll-behavior: contain; 
+            -webkit-overflow-scrolling: touch;
+            
+            /* 下部の操作パネルに隠れないように余白 */
+            padding-bottom: 80px; 
+        }
+
         table { border-collapse: separate; border-spacing: 0; width: 100%; }
         th, td { width: var(--cell-size); height: var(--cell-size); border-right: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color); text-align: center; font-size: 0.75rem; padding: 0; box-sizing: border-box; vertical-align: middle; }
         thead th { position: sticky; top: 0; background: var(--header-bg); z-index: 10; font-weight: bold; height: 40px; border-bottom: 2px solid #ccc; }
@@ -62,7 +82,15 @@
         .my-selection-x { box-shadow: inset 0 0 0 3px #dc3545; }
 
         /* --- 操作パネル --- */
-        .control-panel { position: fixed; bottom: 0; left: 0; width: 100%; background: white; box-shadow: 0 -2px 10px rgba(0,0,0,0.1); padding: 10px 15px; display: flex; justify-content: space-between; align-items: center; z-index: 200; box-sizing: border-box; }
+        .control-panel {
+            flex: 0 0 auto; /* 高さは中身に合わせて固定 */
+            position: fixed; /* 念のためfixed維持だが、レイアウト的には被らない */
+            bottom: 0; left: 0; width: 100%;
+            background: white; box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+            padding: 10px 15px;
+            display: flex; justify-content: space-between; align-items: center;
+            z-index: 200; box-sizing: border-box;
+        }
         .pen-group { display: flex; background: #eee; border-radius: 20px; padding: 4px; }
         .pen-btn { border: none; background: none; padding: 10px 20px; border-radius: 16px; font-weight: bold; font-size: 1rem; cursor: pointer; transition: 0.2s; }
         .pen-btn.active { background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
@@ -78,38 +106,19 @@
         input:checked + .slider { background-color: #2c3e50; }
         input:checked + .slider:before { transform: translateX(22px); }
 
-        /* --- 【修正1】コンテンツ用モーダル（ヘルプ・リスト） --- */
-        /* 背景膜：z-index 300 */
+        /* --- モーダル類 --- */
         .content-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 300; }
-        /* ウィンドウ：z-index 310（膜より上） */
-        .modal-window {
-            display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-            z-index: 310; width: 85%; max-width: 350px; max-height: 80vh; overflow-y: auto;
-        }
-
-        /* --- 【修正2】システム用アラート・確認ダイアログ --- */
-        /* 背景膜：z-index 1000（コンテンツモーダルより確実に上） */
-        .system-overlay {
-            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background-color: rgba(0, 0, 0, 0.5); z-index: 1000;
-            justify-content: center; align-items: center;
-        }
+        .modal-window { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); z-index: 310; width: 85%; max-width: 350px; max-height: 80vh; overflow-y: auto; }
+        
+        .system-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5); z-index: 1000; justify-content: center; align-items: center; }
         .system-overlay.is-active { display: flex; }
-
-        /* アラートボックス：z-index 1001 */
-        .system-box {
-            background: white; padding: 20px 30px; border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3); text-align: center;
-            max-width: 80%; width: 300px; animation: fadeIn 0.2s ease-out; z-index: 1001;
-        }
+        .system-box { background: white; padding: 20px 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); text-align: center; max-width: 80%; width: 300px; animation: fadeIn 0.2s ease-out; z-index: 1001; }
         .system-text { font-size: 1rem; color: #333; margin: 0 0 20px 0; line-height: 1.5; white-space: pre-wrap; }
         .system-btn-group { display: flex; justify-content: center; gap: 15px; }
         .system-btn { border: none; padding: 10px 25px; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s; }
         .btn-ok { background-color: var(--primary-color); color: white; }
         .btn-cancel { background-color: #eee; color: #333; }
         .btn-ok:hover { opacity: 0.9; }
-
         @keyframes fadeIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
 
         /* モーダル内パーツ */
@@ -192,8 +201,7 @@
     <div id="systemOverlay" class="system-overlay">
         <div class="system-box">
             <p id="systemMessage" class="system-text"></p>
-            <div class="system-btn-group" id="systemBtnGroup">
-                </div>
+            <div class="system-btn-group" id="systemBtnGroup"></div>
         </div>
     </div>
 
@@ -217,42 +225,33 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // --- 自作アラート/コンファーム制御 ---
+        // --- アラート制御 ---
         const systemOverlay = document.getElementById('systemOverlay');
         const systemMessage = document.getElementById('systemMessage');
         const systemBtnGroup = document.getElementById('systemBtnGroup');
 
-        // Alert上書き
         window.alert = function(message) {
             systemMessage.textContent = message;
             systemBtnGroup.innerHTML = `<button class="system-btn btn-ok" onclick="closeSystemModal()">OK</button>`;
             systemOverlay.classList.add('is-active');
         };
 
-        // Confirm代替関数（非同期）
         window.showConfirm = function(message, onYes) {
             systemMessage.textContent = message;
-            // ボタンを動的に生成（Yesならコールバック実行）
             systemBtnGroup.innerHTML = `
                 <button class="system-btn btn-cancel" id="btnConfirmNo">キャンセル</button>
                 <button class="system-btn btn-ok" id="btnConfirmYes">実行</button>
             `;
-            
             systemOverlay.classList.add('is-active');
-
-            // イベントハンドラ設定
             document.getElementById('btnConfirmNo').onclick = closeSystemModal;
             document.getElementById('btnConfirmYes').onclick = function() {
                 closeSystemModal();
-                if(onYes) onYes(); // コールバック実行
+                if(onYes) onYes();
             };
         };
+        window.closeSystemModal = function() { systemOverlay.classList.remove('is-active'); };
 
-        window.closeSystemModal = function() {
-            systemOverlay.classList.remove('is-active');
-        };
-
-        // --- 変数 & 関数定義 ---
+        // --- 変数 ---
         const eventTitleEl = document.getElementById('eventTitle');
         const tableEl = document.getElementById('scheduleTable');
         const statusMsg = document.getElementById('statusMsg');
@@ -262,13 +261,8 @@
         const userNameInput = document.getElementById('userName');
 
         let eventId = new URLSearchParams(window.location.search).get('id');
-        let candidates = [];
-        let allAnswers = {}; 
-        let myMatrix = {};   
-        let currentUid = null; 
-        let currentPen = 'o';
-        let dragAction = null; 
-        let lastTouchedCell = null;
+        let candidates = []; let allAnswers = {}; let myMatrix = {};   
+        let currentUid = null; let currentPen = 'o'; let dragAction = null; let lastTouchedCell = null;
 
         window.setPen = (type) => {
             currentPen = type;
@@ -276,7 +270,6 @@
             document.querySelector(`.pen-${type}`).classList.add('active');
         };
 
-        // モーダル開閉（コンテンツ用）
         window.closeAllModals = () => {
             document.getElementById('contentOverlay').style.display = 'none';
             document.getElementById('detailModal').style.display = 'none';
@@ -303,13 +296,11 @@
                 const eventData = eventSnap.data();
                 eventTitleEl.innerText = eventData.title;
                 candidates = eventData.candidates;
-
                 renderTableStructure();
 
                 const answersRef = collection(db, "events", eventId, "answers");
                 onSnapshot(answersRef, (snapshot) => {
-                    allAnswers = {};
-                    snapshot.forEach(doc => { allAnswers[doc.id] = doc.data(); });
+                    allAnswers = {}; snapshot.forEach(doc => { allAnswers[doc.id] = doc.data(); });
                     statusMsg.innerText = `${Object.keys(allAnswers).length}人の回答`;
                     if (currentUid && allAnswers[currentUid]) { myMatrix = { ...allAnswers[currentUid].matrix }; }
                     updateHeatmap(); highlightMySelection(); 
@@ -320,9 +311,7 @@
                     currentUid = savedUid;
                     const savedName = localStorage.getItem(`name_${eventId}`);
                     if(savedName) userNameInput.value = savedName;
-                } else {
-                    setupNewUser();
-                }
+                } else { setupNewUser(); }
             } catch (e) { console.error(e); eventTitleEl.innerText = "読み込みエラー"; }
         }
 
@@ -351,14 +340,11 @@
             alert(`${data.name} さんの回答を読み込みました`);
         }
 
-        // 削除処理（自作Confirm対応）
         function deleteUser(uid) {
-            // Confirm呼び出し（OKならコールバック実行）
             window.showConfirm("本当に削除しますか？\nこの操作は取り消せません。", async () => {
                 try {
                     await deleteDoc(doc(db, "events", eventId, "answers", uid));
-                    if(uid === currentUid) { setupNewUser(); } 
-                    else { renderUserListModal(); }
+                    if(uid === currentUid) { setupNewUser(); } else { renderUserListModal(); }
                 } catch(e) { alert("削除エラー: " + e); }
             });
         }
@@ -366,10 +352,7 @@
         function renderTableStructure() {
             let minStart = 24, maxEnd = 0;
             const uniqueDates = [...new Set(candidates.map(c => c.date))];
-            candidates.forEach(c => {
-                if (c.start < minStart) minStart = c.start;
-                if (c.end > maxEnd) maxEnd = c.end;
-            });
+            candidates.forEach(c => { if (c.start < minStart) minStart = c.start; if (c.end > maxEnd) maxEnd = c.end; });
             let html = `<thead><tr><th style="width:50px;">時間</th>`;
             uniqueDates.forEach(d => {
                 const dateStr = new Date(d).toLocaleDateString('ja-JP', {month:'numeric', day:'numeric', weekday:'short'});
@@ -381,9 +364,8 @@
                 uniqueDates.forEach(date => {
                     const isActive = candidates.some(c => c.date === date && t >= c.start && t < c.end);
                     const cellKey = `${date}_${t}`;
-                    if (isActive) {
-                        html += `<td data-key="${cellKey}" class="bg-none"><div class="cell-content"><span class="c-o">●0</span><span class="c-tri">▲0</span><span class="c-x">×0</span></div></td>`;
-                    } else { html += `<td class="disabled-cell"></td>`; }
+                    if (isActive) { html += `<td data-key="${cellKey}" class="bg-none"><div class="cell-content"><span class="c-o">●0</span><span class="c-tri">▲0</span><span class="c-x">×0</span></div></td>`; } 
+                    else { html += `<td class="disabled-cell"></td>`; }
                 });
                 html += `</tr>`;
             }
@@ -498,15 +480,12 @@
             openModalBase('userListModal');
         }
 
-        // 保存処理（自作Confirm対応）
         btnSave.addEventListener('click', async () => {
             const name = userNameInput.value.trim();
             if (!name) { alert("お名前を入力してください"); return; }
             
-            // 実行関数
             const executeSave = async () => {
-                btnSave.disabled = true;
-                btnSave.innerText = "保存中...";
+                btnSave.disabled = true; btnSave.innerText = "保存中...";
                 try {
                     const docRef = doc(db, "events", eventId, "answers", currentUid);
                     await setDoc(docRef, { name: name, matrix: myMatrix, updatedAt: serverTimestamp() });
@@ -517,12 +496,8 @@
                 finally { btnSave.disabled = false; btnSave.innerText = "保存"; }
             };
 
-            if (Object.keys(myMatrix).length === 0) { 
-                // Confirm呼び出し
-                window.showConfirm("日程が未選択ですが保存しますか？", executeSave);
-            } else {
-                executeSave();
-            }
+            if (Object.keys(myMatrix).length === 0) { window.showConfirm("日程が未選択ですが保存しますか？", executeSave); } 
+            else { executeSave(); }
         });
 
         init();
