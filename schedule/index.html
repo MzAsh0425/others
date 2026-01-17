@@ -142,7 +142,7 @@
         <div class="header-top">
             <h2 class="event-title" id="eventTitle">読み込み中...</h2>
             <div class="header-actions">
-                <button class="btn-help" onclick="openHelpModal()">？</button>
+                <button class="btn-help" onclick="goToEditPage()">✏️</button> <button class="btn-help" onclick="openHelpModal()">？</button>
                 <button class="btn-list" onclick="openUserListModal()">👥 回答一覧</button>
             </div>
         </div>
@@ -285,6 +285,14 @@
         window.switchToNewUser = setupNewUser;
         window.loadUserToEdit = loadUserToEdit;
         window.deleteUser = deleteUser;
+
+        // 編集ページへ移動する関数
+        window.goToEditPage = () => {
+            if(!confirm("イベント内容（日時やタイトル）を編集しますか？\n※管理者用の機能です")) return;
+            // 現在のURL (index.html?id=xxx) を admin.html?id=xxx に書き換えて移動
+            const editUrl = window.location.href.replace('index.html', 'admin.html');
+            window.location.href = editUrl;
+        };
 
         // --- 初期化 ---
         async function init() {
