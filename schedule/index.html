@@ -321,17 +321,22 @@
                 // 完了表示
                 resultArea.style.display = "block";
                 
-                // 共有URL (index.html)
+                // 共有URL (event.html に変更)
                 const currentUrl = window.location.href; 
-                // ファイル名部分(admin.html)を除去してindex.htmlを繋げる簡易ロジック
-                // URLに ?id=... がある場合の対応も含む
-                const baseUrl = currentUrl.split('?')[0].replace('admin.html', 'index.html');
-                const answerPageUrl = baseUrl + "?id=" + targetId;
+                // URLからファイル名やクエリを除去して、ベースのパスを取得
+                // 例: https://site.com/index.html?id=123 -> https://site.com/
+                let baseUrl = currentUrl.substring(0, currentUrl.lastIndexOf('/')) + '/';
+                // もしルート直下(index.html省略)でアクセスしている場合の補正
+                if (baseUrl.includes('index.html')) {
+                    baseUrl = baseUrl.replace('index.html', '');
+                }
+                // 回答ページ（event.html）のURLを作成
+                const answerPageUrl = baseUrl + "event.html?id=" + targetId;
                 shareLink.href = answerPageUrl;
                 shareLink.innerText = answerPageUrl;
 
-                // 編集用URL (自分用)
-                const editPageUrl = currentUrl.split('?')[0] + "?id=" + targetId;
+                // 編集用URL (自分用) - index.html (トップページ) でID付きを開く
+                const editPageUrl = baseUrl + "?id=" + targetId; // index.htmlは省略可能なので ?id= だけでもOK
                 editLink.href = editPageUrl;
                 editLink.innerText = editPageUrl;
 
