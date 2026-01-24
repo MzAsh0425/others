@@ -2,197 +2,141 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>日程調整</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>イベント作成・編集</title>
     <style>
-        :root {
-            --cell-size: 50px; --header-bg: #f8f9fa; --border-color: #ddd; --primary-color: #2c3e50; --accent-color: #007bff;
-        }
-        
-        /* 基本設定・固定レイアウト */
-        html, body {
-            height: 100%; margin: 0; padding: 0; overflow: hidden;
+        /* --- デザイン設定 --- */
+        body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background-color: #f4f4f9; color: #333;
-            display: flex; flex-direction: column;
+            background-color: #f4f4f9; padding: 20px; color: #333;
+            max-width: 800px; margin: 0 auto;
         }
-
-        /* ヘッダー */
-        .header {
-            flex: 0 0 auto; padding: 10px 15px; background: white;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1); z-index: 100;
-        }
-        .header-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
-        .event-info { flex: 1; margin-right: 10px; }
-        .event-title { margin: 0; font-size: 1.1rem; color: #2c3e50; font-weight: bold; }
+        h1 { font-size: 1.5rem; color: #2c3e50; }
         
-        /* 【追加】メモ表示エリア */
-        .event-memo {
-            font-size: 0.85rem; color: #555; background: #f1f3f5;
-            padding: 8px; border-radius: 4px; margin-top: 5px;
-            white-space: pre-wrap; /* 改行を反映 */
-            display: none; /* 中身があるときだけ表示 */
-            max-height: 80px; overflow-y: auto;
+        .form-card {
+            background: white; padding: 20px; border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 20px;
+        }
+        .input-group { margin-bottom: 15px; }
+        label { display: block; font-weight: bold; margin-bottom: 5px; font-size: 0.9rem; }
+        input[type="text"], input[type="date"], select {
+            width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px;
+            font-size: 1rem; box-sizing: border-box; background: #fff;
+            -webkit-appearance: none; appearance: none; min-height: 44px;
         }
 
-        .header-actions { display: flex; gap: 8px; align-items: center; }
-        .btn-list { font-size: 0.8rem; padding: 6px 12px; background: #e9ecef; border: none; border-radius: 4px; cursor: pointer; color: #333; display: flex; align-items: center; gap: 4px; }
-        .btn-help { width: 28px; height: 28px; border-radius: 50%; border: 1px solid #ccc; background: white; color: #666; font-weight: bold; font-size: 0.9rem; cursor: pointer; display: flex; justify-content: center; align-items: center; }
-
-        .user-input-area { display: flex; gap: 8px; max-width: 600px; margin: 0 auto; }
-        input.name-input { flex: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 1rem; background: #fff; }
-        input.name-input.editing { border: 2px solid var(--accent-color); background: #f0f8ff; }
-        button.btn-save { background-color: var(--primary-color); color: white; border: none; padding: 0 20px; border-radius: 4px; font-weight: bold; cursor: pointer; white-space: nowrap; }
-        button.btn-save:disabled { background-color: #999; }
-
-        /* マトリクスエリア */
-        .matrix-container {
-            flex: 1; overflow: auto; position: relative; -webkit-user-select: none; user-select: none; background: white;
-            overscroll-behavior: contain; -webkit-overflow-scrolling: touch; padding-bottom: 80px; 
+        /* レスポンシブ対応レイアウト */
+        .date-adder {
+            display: flex; flex-wrap: wrap; gap: 15px; align-items: flex-end;
+            background: #eef2f5; padding: 15px; border-radius: 8px;
         }
+        .field-date { flex: 1 1 160px; }
+        .field-time-range { flex: 2 1 220px; display: flex; align-items: center; gap: 10px; }
+        .field-time-range select { flex: 1; }
+        .field-btn { flex: 0 0 auto; }
 
-        table { border-collapse: separate; border-spacing: 0; width: 100%; }
-        th, td { width: var(--cell-size); height: var(--cell-size); border-right: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color); text-align: center; font-size: 0.75rem; padding: 0; box-sizing: border-box; vertical-align: middle; }
-        thead th { position: sticky; top: 0; background: var(--header-bg); z-index: 10; font-weight: bold; height: 40px; border-bottom: 2px solid #ccc; }
-        thead th:first-child { left: 0; z-index: 20; background: var(--header-bg); }
-        tbody th { position: sticky; left: 0; background: var(--header-bg); z-index: 5; font-weight: normal; font-size: 0.8rem; border-right: 2px solid #ccc; }
-
-        .disabled-cell { background-color: #e9ecef !important; background-image: linear-gradient(45deg, #ddd 25%, transparent 25%, transparent 50%, #ddd 50%, #ddd 75%, transparent 75%, transparent); background-size: 10px 10px; pointer-events: none; }
-        .cell-content { display: flex; flex-direction: column; justify-content: center; height: 100%; line-height: 1.1; font-size: 0.65rem; }
-        .c-o { color: #006400; font-weight: bold; }
-        .c-tri { color: #b8860b; }
-        .c-x { color: #999; }
-        .bg-high { background-color: #d4edda; }
-        .bg-mid { background-color: #fff3cd; }
-        .bg-low { background-color: #f8d7da; }
-        .bg-none { background-color: #fff; }
-        .my-selection-o { box-shadow: inset 0 0 0 3px #28a745; }
-        .my-selection-tri { box-shadow: inset 0 0 0 3px #ffc107; }
-        .my-selection-x { box-shadow: inset 0 0 0 3px #dc3545; }
-
-        /* 操作パネル */
-        .control-panel {
-            flex: 0 0 auto; position: fixed; bottom: 0; left: 0; width: 100%;
-            background: white; box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
-            padding: 10px 15px; display: flex; justify-content: space-between; align-items: center;
-            z-index: 200; box-sizing: border-box;
+        button.btn-add {
+            background-color: #2c3e50; color: white; border: none; padding: 0 25px;
+            height: 44px; border-radius: 4px; cursor: pointer; font-weight: bold; white-space: nowrap;
         }
-        .pen-group { display: flex; background: #eee; border-radius: 20px; padding: 4px; }
-        .pen-btn { border: none; background: none; padding: 10px 20px; border-radius: 16px; font-weight: bold; font-size: 1rem; cursor: pointer; transition: 0.2s; }
-        .pen-btn.active { background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        .pen-o.active { color: #28a745; }
-        .pen-tri.active { color: #ffc107; }
-        .pen-x.active { color: #dc3545; }
-        .mode-switch { display: flex; flex-direction: column; align-items: center; gap: 2px; }
-        .switch-label { font-size: 0.7rem; font-weight: bold; color: #555; }
-        .toggle { position: relative; display: inline-block; width: 50px; height: 28px; }
-        .toggle input { opacity: 0; width: 0; height: 0; }
-        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 34px; }
-        .slider:before { position: absolute; content: ""; height: 22px; width: 22px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
-        input:checked + .slider { background-color: #2c3e50; }
-        input:checked + .slider:before { transform: translateX(22px); }
-
-        /* モーダル */
-        .content-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 300; }
-        .modal-window { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); z-index: 310; width: 85%; max-width: 350px; max-height: 80vh; overflow-y: auto; }
         
-        .system-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5); z-index: 1000; justify-content: center; align-items: center; }
-        .system-overlay.is-active { display: flex; }
-        .system-box { background: white; padding: 20px 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); text-align: center; max-width: 80%; width: 300px; animation: fadeIn 0.2s ease-out; z-index: 1001; }
-        .system-text { font-size: 1rem; color: #333; margin: 0 0 20px 0; line-height: 1.5; white-space: pre-wrap; }
-        .system-btn-group { display: flex; justify-content: center; gap: 15px; }
-        .system-btn { border: none; padding: 10px 25px; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s; }
-        .btn-ok { background-color: var(--primary-color); color: white; }
-        .btn-cancel { background-color: #eee; color: #333; }
-        .btn-ok:hover { opacity: 0.9; }
-        @keyframes fadeIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+        @media (max-width: 500px) {
+            .date-adder { flex-direction: column; align-items: stretch; gap: 15px; }
+            .field-date, .field-time-range, .field-btn { flex: 0 0 auto; width: 100%; }
+            .field-time-range { gap: 8px; }
+            .field-time-range div:nth-child(2) { padding-top: 0 !important; padding: 0 5px; }
+            button.btn-add { width: 100%; margin-top: 5px; }
+        }
 
-        .modal-title { margin: 0 0 15px 0; font-size: 1.1rem; color: #2c3e50; border-bottom: 2px solid #eee; padding-bottom: 8px; }
-        .modal-close { margin-top: 15px; width: 100%; padding: 10px; background: #eee; border: none; border-radius: 4px; cursor: pointer; }
-        .help-section { margin-bottom: 15px; }
-        .help-head { font-weight: bold; font-size: 0.9rem; color: #2c3e50; margin-bottom: 5px; }
-        .help-text { font-size: 0.85rem; color: #555; line-height: 1.5; margin: 0; }
-        .help-tag { display: inline-block; padding: 2px 6px; background: #eee; border-radius: 4px; font-size: 0.75rem; font-weight: bold; margin-right: 4px; }
-        .user-list { list-style: none; padding: 0; margin: 0; }
-        .user-list-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 10px; border-bottom: 1px solid #f1f1f1; cursor: pointer; }
-        .user-list-item:active { background-color: #f9f9f9; }
-        .badge-edit { font-size: 0.75rem; background: var(--accent-color); color: white; padding: 2px 6px; border-radius: 4px; }
-        .btn-new-user { width: 100%; background-color: #28a745; color: white; padding: 12px; margin-bottom: 10px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; }
-        .btn-delete-user { background-color: #dc3545; color: white; padding: 4px 8px; border: none; border-radius: 4px; font-size: 0.8rem; cursor: pointer; margin-left: 10px; }
+        button.btn-create {
+            width: 100%; background-color: #28a745; color: white; border: none;
+            padding: 15px; border-radius: 4px; font-size: 1.1rem; font-weight: bold;
+            cursor: pointer; margin-top: 20px;
+        }
+        button.btn-create:disabled { background-color: #ccc; cursor: not-allowed; }
+
+        /* 編集モード時の色変え */
+        button.btn-create.is-edit { background-color: #007bff; }
+
+        .candidate-list { list-style: none; padding: 0; margin-top: 15px; }
+        .candidate-item {
+            display: flex; justify-content: space-between; background: white;
+            border-bottom: 1px solid #eee; padding: 10px; align-items: center;
+        }
+        .btn-delete {
+            color: #dc3545; background: none; border: 1px solid #dc3545;
+            border-radius: 4px; padding: 4px 10px; cursor: pointer; font-size: 0.8rem;
+            white-space: nowrap; margin-left: 10px;
+        }
+
+        .preview-area { margin-top: 30px; }
+        .preview-table { width: 100%; border-collapse: collapse; background: white; font-size: 0.85rem; }
+        .preview-table th, .preview-table td { border: 1px solid #ddd; padding: 8px; text-align: center; min-width: 40px; }
+        .preview-table th { background: #2c3e50; color: white; }
+        .preview-table td.disabled-cell { background-color: #e9ecef; pointer-events: none; }
+        .preview-table td.active-cell { background-color: #fff; }
+        
+        #resultArea {
+            display: none; margin-top: 30px; background: #d4edda; color: #155724;
+            padding: 20px; border-radius: 8px; border: 1px solid #c3e6cb; word-break: break-all;
+        }
+        
+        /* 読み込み中オーバーレイ */
+        #loadingOverlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255,255,255,0.8); z-index: 999; display: none;
+            justify-content: center; align-items: center; font-weight: bold; color: #555;
+        }
     </style>
 </head>
 <body>
 
-    <div class="header">
-        <div class="header-top">
-            <div class="event-info">
-                <h2 class="event-title" id="eventTitle">読み込み中...</h2>
-                <div id="eventMemoDisplay" class="event-memo"></div>
+    <div id="loadingOverlay">データを読み込んでいます...</div>
+
+    <h1 id="pageTitle">📅 イベント作成</h1>
+    <p style="font-size:0.9rem; color:#666;" id="pageDesc">候補日と時間帯を追加してください。</p>
+
+    <div class="form-card">
+        <div class="input-group">
+            <label>イベント名</label>
+            <input type="text" id="eventTitle" placeholder="例：第3回 開発定例">
+        </div>
+
+        <label>候補日時の追加</label>
+        <div class="date-adder">
+            <div class="field-date">
+                <label style="font-size:0.8rem;">日付</label>
+                <input type="date" id="inputDate">
             </div>
-            <div class="header-actions">
-                <button class="btn-list" style="background:#28a745; color:white;" onclick="goToTop()">＋ 新規作成</button>
-                <button class="btn-help" onclick="goToEditPage()">✏️</button>
-                <button class="btn-help" onclick="openHelpModal()">？</button>
-                <button class="btn-list" onclick="openUserListModal()">👥 回答一覧</button>
+            <div class="field-time-range">
+                <div style="flex:1"><label style="font-size:0.8rem;">開始</label><select id="inputStart"></select></div>
+                <div>～</div>
+                <div style="flex:1"><label style="font-size:0.8rem;">終了</label><select id="inputEnd"></select></div>
+            </div>
+            <div class="field-btn">
+                <button class="btn-add" id="btnAdd">追加</button>
             </div>
         </div>
-        <div class="user-input-area">
-            <input type="text" id="userName" class="name-input" placeholder="あなたのお名前">
-            <button class="btn-save" id="btnSave">保存</button>
-        </div>
-        <div style="font-size:0.75rem; color:#666; text-align:center; margin-top:5px;">
-            <span id="statusMsg">データを読み込んでいます...</span>
-        </div>
+        <ul class="candidate-list" id="candidateList"></ul>
     </div>
 
-    <div class="matrix-container" id="matrix">
-        <table id="scheduleTable"></table>
+    <div class="preview-area" id="previewArea" style="display:none;">
+        <h3>👀 プレビュー</h3>
+        <div style="overflow-x:auto;"><table class="preview-table" id="previewTable"></table></div>
     </div>
 
-    <div class="control-panel">
-        <div class="pen-group">
-            <button class="pen-btn pen-o active" onclick="setPen('o')">◯</button>
-            <button class="pen-btn pen-tri" onclick="setPen('tri')">△</button>
-            <button class="pen-btn pen-x" onclick="setPen('x')">×</button>
-        </div>
-        <div class="mode-switch">
-            <span class="switch-label">入力</span>
-            <label class="toggle">
-                <input type="checkbox" id="paintModeCheck">
-                <span class="slider"></span>
-            </label>
-        </div>
-    </div>
+    <button class="btn-create" id="btnCreate">イベントを作成する</button>
 
-    <div class="content-overlay" id="contentOverlay" onclick="closeAllModals()"></div>
-
-    <div class="modal-window" id="detailModal">
-        <h3 class="modal-title" id="detailModalTitle">日時詳細</h3>
-        <ul class="user-list" id="detailList"></ul>
-        <button class="modal-close" onclick="closeAllModals()">閉じる</button>
-    </div>
-
-    <div class="modal-window" id="helpModal">
-        <h3 class="modal-title">📌 使い方ガイド</h3>
-        <div class="help-section"><div class="help-head">✏️ 入力方法</div><p class="help-text"><span class="help-tag">入力ON</span>でなぞると連続入力できます。同じペンでなぞると消えます。</p></div>
-        <div class="help-section"><div class="help-head">👀 詳細を見る</div><p class="help-text"><span class="help-tag">入力OFF</span>でマスをタップするとメンバー詳細が見れます。</p></div>
-        <div class="help-section"><div class="help-head">👥 修正・代理</div><p class="help-text">「回答一覧」から名前を選んで修正できます。「新しく入力」で代理入力できます。</p></div>
-        <button class="modal-close" onclick="closeAllModals()">閉じる</button>
-    </div>
-
-    <div class="modal-window" id="userListModal">
-        <h3 class="modal-title">回答者一覧・編集</h3>
-        <p style="font-size:0.85rem; color:#666; margin-bottom:15px;">名前タップで修正、削除で取り消し。<br>代理入力は「新しく入力」から。</p>
-        <button class="btn-new-user" onclick="switchToNewUser()">＋ 新しく入力する</button>
-        <ul class="user-list" id="userSelectList"></ul>
-        <button class="modal-close" onclick="closeAllModals()">閉じる</button>
-    </div>
-
-    <div id="systemOverlay" class="system-overlay">
-        <div class="system-box">
-            <p id="systemMessage" class="system-text"></p>
-            <div class="system-btn-group" id="systemBtnGroup"></div>
-        </div>
+    <div id="resultArea">
+        <strong id="resultTitle">✅ イベントを作成しました！</strong><br>
+        以下のURLをメンバーに共有してください：<br><br>
+        <a href="#" id="shareLink" target="_blank" style="font-weight:bold; font-size:1.2rem;"></a>
+        <br><br>
+        <hr style="border:0; border-top:1px solid #c3e6cb; margin:15px 0;">
+        <span style="font-size:0.9rem;">
+            ✏️ 後から内容を修正したい場合は、このページ（admin.html）のURLをブックマークしておいてください：<br>
+            <a href="#" id="editLink" target="_blank"></a>
+        </span>
     </div>
 
     <script type="module">
@@ -210,166 +154,119 @@
         // -----------------------------------------------------
 
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, doc, getDoc, collection, setDoc, deleteDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        // updateDoc を追加
+        import { getFirestore, collection, addDoc, doc, getDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        const systemOverlay = document.getElementById('systemOverlay');
-        const systemMessage = document.getElementById('systemMessage');
-        const systemBtnGroup = document.getElementById('systemBtnGroup');
+        // 要素
+        const listEl = document.getElementById('candidateList');
+        const previewArea = document.getElementById('previewArea');
+        const previewTable = document.getElementById('previewTable');
+        const btnAdd = document.getElementById('btnAdd');
+        const btnCreate = document.getElementById('btnCreate');
+        const resultArea = document.getElementById('resultArea');
+        const shareLink = document.getElementById('shareLink');
+        const editLink = document.getElementById('editLink');
+        const titleInput = document.getElementById('eventTitle');
+        const loadingOverlay = document.getElementById('loadingOverlay');
 
-        window.alert = function(message) {
-            systemMessage.textContent = message;
-            systemBtnGroup.innerHTML = `<button class="system-btn btn-ok" onclick="closeSystemModal()">OK</button>`;
-            systemOverlay.classList.add('is-active');
-        };
+        // URLパラメータからIDを取得（編集モード判定）
+        const urlParams = new URLSearchParams(window.location.search);
+        const eventId = urlParams.get('id');
 
-        window.showConfirm = function(message, onYes) {
-            systemMessage.textContent = message;
-            systemBtnGroup.innerHTML = `
-                <button class="system-btn btn-cancel" id="btnConfirmNo">キャンセル</button>
-                <button class="system-btn btn-ok" id="btnConfirmYes">実行</button>
-            `;
-            systemOverlay.classList.add('is-active');
-            document.getElementById('btnConfirmNo').onclick = closeSystemModal;
-            document.getElementById('btnConfirmYes').onclick = function() {
-                closeSystemModal();
-                if(onYes) onYes();
-            };
-        };
-        window.closeSystemModal = function() { systemOverlay.classList.remove('is-active'); };
+        let candidates = []; 
 
-        const eventTitleEl = document.getElementById('eventTitle');
-        const eventMemoEl = document.getElementById('eventMemoDisplay'); // 追加
-        const tableEl = document.getElementById('scheduleTable');
-        const statusMsg = document.getElementById('statusMsg');
-        const paintCheck = document.getElementById('paintModeCheck');
-        const matrixContainer = document.getElementById('matrix');
-        const btnSave = document.getElementById('btnSave');
-        const userNameInput = document.getElementById('userName');
+        // 初期化
+        const startSel = document.getElementById('inputStart');
+        const endSel = document.getElementById('inputEnd');
+        for(let i=0; i<=23; i++) { 
+            const opt = `<option value="${i}">${i}:00</option>`;
+            startSel.innerHTML += opt; endSel.innerHTML += opt;
+        }
+        startSel.value = "10"; endSel.value = "18";
+        document.getElementById('inputDate').valueAsDate = new Date();
 
-        let eventId = new URLSearchParams(window.location.search).get('id');
-        let candidates = []; let allAnswers = {}; let myMatrix = {};   
-        let currentUid = null; let currentPen = 'o'; let dragAction = null; let lastTouchedCell = null;
+        // 編集モードならデータをロード
+        if (eventId) {
+            initEditMode();
+        }
 
-        window.setPen = (type) => {
-            currentPen = type;
-            document.querySelectorAll('.pen-btn').forEach(b => b.classList.remove('active'));
-            document.querySelector(`.pen-${type}`).classList.add('active');
-        };
+        // イベントリスナー
+        btnAdd.addEventListener('click', addCandidate);
+        btnCreate.addEventListener('click', saveEvent);
 
-        window.closeAllModals = () => {
-            document.getElementById('contentOverlay').style.display = 'none';
-            document.getElementById('detailModal').style.display = 'none';
-            document.getElementById('userListModal').style.display = 'none';
-            document.getElementById('helpModal').style.display = 'none';
-        };
-        const openModalBase = (id) => {
-            document.getElementById('contentOverlay').style.display = 'block';
-            document.getElementById(id).style.display = 'block';
-        };
-        window.openHelpModal = () => openModalBase('helpModal');
-        window.openUserListModal = renderUserListModal;
-        window.switchToNewUser = setupNewUser;
-        window.loadUserToEdit = loadUserToEdit;
-        window.deleteUser = deleteUser;
+        // --- 編集モード初期化 ---
+        async function initEditMode() {
+            loadingOverlay.style.display = 'flex';
+            document.title = "イベント編集";
+            document.getElementById('pageTitle').innerText = "📝 イベント編集";
+            document.getElementById('pageDesc').innerText = "内容を修正して「変更を保存」を押してください。";
+            btnCreate.innerText = "変更を保存する";
+            btnCreate.classList.add('is-edit');
 
-        async function init() {
-            if (!eventId) { eventTitleEl.innerText = "エラー: IDなし"; return; }
             try {
-                const eventRef = doc(db, "events", eventId);
-                const eventSnap = await getDoc(eventRef);
-                if (!eventSnap.exists()) { eventTitleEl.innerText = "イベントが見つかりません"; return; }
-                const eventData = eventSnap.data();
-                eventTitleEl.innerText = eventData.title;
-                
-                // 【追加】メモの表示処理
-                if (eventData.memo) {
-                    eventMemoEl.textContent = eventData.memo;
-                    eventMemoEl.style.display = "block";
+                const docRef = doc(db, "events", eventId);
+                const docSnap = await getDoc(docRef);
+
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    titleInput.value = data.title;
+                    candidates = data.candidates || [];
+                    renderList();
+                    renderPreview();
+                } else {
+                    alert("指定されたイベントが見つかりません。");
                 }
-
-                candidates = eventData.candidates;
-                renderTableStructure();
-
-                const answersRef = collection(db, "events", eventId, "answers");
-                onSnapshot(answersRef, (snapshot) => {
-                    allAnswers = {}; snapshot.forEach(doc => { allAnswers[doc.id] = doc.data(); });
-                    statusMsg.innerText = `${Object.keys(allAnswers).length}人の回答`;
-                    if (currentUid && allAnswers[currentUid]) { myMatrix = { ...allAnswers[currentUid].matrix }; }
-                    updateHeatmap(); highlightMySelection(); 
-                });
-
-                const savedUid = localStorage.getItem(`uid_${eventId}`);
-                if (savedUid) {
-                    currentUid = savedUid;
-                    const savedName = localStorage.getItem(`name_${eventId}`);
-                    if(savedName) userNameInput.value = savedName;
-                } else { setupNewUser(); }
-            } catch (e) { console.error(e); eventTitleEl.innerText = "読み込みエラー"; }
+            } catch (e) {
+                console.error(e);
+                alert("読み込みエラー: " + e);
+            } finally {
+                loadingOverlay.style.display = 'none';
+            }
         }
 
-        window.goToTop = () => {
-            let baseUrl = window.location.href.substring(0, window.location.href.lastIndexOf('/')) + '/';
-            window.location.href = baseUrl; 
-        };
+        // --- ロジック ---
+        function addCandidate() {
+            const dateVal = document.getElementById('inputDate').value;
+            const startVal = parseInt(document.getElementById('inputStart').value);
+            const endVal = parseInt(document.getElementById('inputEnd').value);
 
-        window.goToEditPage = () => {
-            window.showConfirm("イベント内容（日時やタイトル）を編集しますか？\n※管理者用の機能です", () => {
-                const currentUrl = window.location.href;
-                let editUrl = currentUrl.replace('event.html', 'index.html');
-                if (editUrl.includes('?')) { editUrl += "&mode=edit"; } else { editUrl += "?mode=edit"; }
-                window.location.href = editUrl;
-            });
-        };
+            if (!dateVal) { alert("日付を選択してください"); return; }
+            if (startVal >= endVal) { alert("終了時間は開始時間より後にしてください"); return; }
 
-        function setupNewUser() {
-            currentUid = 'user_' + Math.random().toString(36).substr(2, 9);
-            localStorage.setItem(`uid_${eventId}`, currentUid);
-            localStorage.removeItem(`name_${eventId}`);
-            userNameInput.value = "";
-            userNameInput.classList.remove("editing");
-            myMatrix = {};
-            window.closeAllModals();
-            highlightMySelection();
+            candidates.push({ date: dateVal, start: startVal, end: endVal });
+            candidates.sort((a, b) => new Date(a.date) - new Date(b.date));
+            renderList();
+            renderPreview();
         }
 
-        function loadUserToEdit(uid) {
-            if (!allAnswers[uid]) return;
-            currentUid = uid;
-            localStorage.setItem(`uid_${eventId}`, currentUid);
-            const data = allAnswers[uid];
-            userNameInput.value = data.name;
-            localStorage.setItem(`name_${eventId}`, data.name);
-            myMatrix = data.matrix ? { ...data.matrix } : {};
-            userNameInput.classList.add("editing");
-            window.closeAllModals();
-            highlightMySelection();
-            alert(`${data.name} さんの回答を読み込みました`);
+        window.removeCandidate = function(index) {
+            candidates.splice(index, 1);
+            renderList();
+            renderPreview();
         }
 
-        function deleteUser(uid) {
-            window.showConfirm("本当に削除しますか？\nこの操作は取り消せません。", async () => {
-                try {
-                    await deleteDoc(doc(db, "events", eventId, "answers", uid));
-                    if(uid === currentUid) { setupNewUser(); } else { renderUserListModal(); }
-                } catch(e) { alert("削除エラー: " + e); }
+        function renderList() {
+            listEl.innerHTML = "";
+            candidates.forEach((c, index) => {
+                const li = document.createElement('li');
+                li.className = "candidate-item";
+                li.innerHTML = `<span><strong>${c.date}</strong> ${c.start}:00 ～ ${c.end}:00</span><button class="btn-delete" onclick="window.removeCandidate(${index})">削除</button>`;
+                listEl.appendChild(li);
             });
         }
 
-        function renderTableStructure() {
+        function renderPreview() {
+            if (candidates.length === 0) { previewArea.style.display = 'none'; return; }
+            previewArea.style.display = 'block';
+
             let minStart = 24, maxEnd = 0;
             const uniqueDates = [...new Set(candidates.map(c => c.date))];
-            
-            candidates.forEach(c => { 
-                if (c.start < minStart) minStart = c.start; 
-                // 【修正】23時終了を24時として扱うロジック
-                let effectiveEnd = (c.end === 23) ? 24 : c.end;
-                if (effectiveEnd > maxEnd) maxEnd = effectiveEnd;
-            });
+            candidates.forEach(c => { if (c.start < minStart) minStart = c.start; if (c.end > maxEnd) maxEnd = c.end; });
 
-            let html = `<thead><tr><th style="width:50px;">時間</th>`;
+            let html = `<thead><tr><th>時間</th>`;
             uniqueDates.forEach(d => {
                 const dateStr = new Date(d).toLocaleDateString('ja-JP', {month:'numeric', day:'numeric', weekday:'short'});
                 html += `<th>${dateStr}</th>`;
@@ -379,150 +276,83 @@
             for (let t = minStart; t < maxEnd; t++) {
                 html += `<tr><th>${t}:00</th>`;
                 uniqueDates.forEach(date => {
-                    // 【修正】ここでも23時終了を24時として扱う
-                    const isActive = candidates.some(c => {
-                        let effectiveEnd = (c.end === 23) ? 24 : c.end;
-                        return c.date === date && t >= c.start && t < effectiveEnd;
-                    });
-
-                    const cellKey = `${date}_${t}`;
-                    if (isActive) { html += `<td data-key="${cellKey}" class="bg-none"><div class="cell-content"><span class="c-o">●0</span><span class="c-tri">▲0</span><span class="c-x">×0</span></div></td>`; } 
-                    else { html += `<td class="disabled-cell"></td>`; }
+                    const isActive = candidates.some(c => c.date === date && t >= c.start && t < c.end);
+                    if (isActive) html += `<td class="active-cell">◯</td>`;
+                    else html += `<td class="disabled-cell"></td>`;
                 });
                 html += `</tr>`;
             }
             html += `</tbody>`;
-            tableEl.innerHTML = html;
+            previewTable.innerHTML = html;
         }
 
-        function updateHeatmap() {
-            const counts = {}; 
-            Object.values(allAnswers).forEach(ans => {
-                if (!ans.matrix) return;
-                Object.entries(ans.matrix).forEach(([key, val]) => {
-                    if (!counts[key]) counts[key] = {o:0, tri:0, x:0};
-                    if (val === 'o') counts[key].o++; if (val === 'tri') counts[key].tri++; if (val === 'x') counts[key].x++;
-                });
-            });
-            document.querySelectorAll('td[data-key]').forEach(td => {
-                const key = td.dataset.key;
-                const c = counts[key] || {o:0, tri:0, x:0};
-                const total = c.o + c.tri + c.x;
-                td.querySelector('.cell-content').innerHTML = `<span class="c-o">●${c.o}</span><span class="c-tri">▲${c.tri}</span><span class="c-x">×${c.x}</span>`;
-                td.classList.remove('bg-high', 'bg-mid', 'bg-low', 'bg-none');
-                if (total > 0) {
-                    const score = c.o * 2 + c.tri * 1; const maxScore = Object.keys(allAnswers).length * 2;
-                    if (maxScore > 0 && score / maxScore > 0.8) td.classList.add('bg-high');
-                    else if (c.x > 0 && c.x > Object.keys(allAnswers).length / 2) td.classList.add('bg-low');
-                    else td.classList.add('bg-mid');
-                } else { td.classList.add('bg-none'); }
-            });
-        }
+        // --- 保存処理（新規作成 / 更新） ---
+        async function saveEvent() {
+            const title = titleInput.value;
+            if(!title) { alert("イベント名を入力してください"); return; }
+            if(candidates.length === 0) { alert("候補日時を追加してください"); return; }
 
-        function highlightMySelection() {
-            document.querySelectorAll('td[data-key]').forEach(td => {
-                const key = td.dataset.key;
-                td.classList.remove('my-selection-o', 'my-selection-tri', 'my-selection-x');
-                const myVal = myMatrix[key];
-                if (myVal) { td.classList.add(`my-selection-${myVal}`); }
-            });
-        }
+            btnCreate.disabled = true;
+            btnCreate.innerText = "処理中...";
 
-        function applyMyInput(td, action) {
-            const key = td.dataset.key;
-            if (action === 'erase') { delete myMatrix[key]; } else { myMatrix[key] = currentPen; }
-            highlightMySelection();
-        }
+            try {
+                let targetId = eventId;
 
-        matrixContainer.addEventListener('touchstart', function(e) {
-            if (!paintCheck.checked) return;
-            const td = e.target.closest('td');
-            if (td && !td.classList.contains('disabled-cell')) {
-                e.preventDefault();
-                const key = td.dataset.key;
-                const currentVal = myMatrix[key];
-                if (currentVal === currentPen) dragAction = 'erase'; else dragAction = 'paint';
-                applyMyInput(td, dragAction); lastTouchedCell = td;
+                if (eventId) {
+                    // --- 更新モード (Update) ---
+                    const docRef = doc(db, "events", eventId);
+                    await updateDoc(docRef, {
+                        title: title,
+                        candidates: candidates,
+                        updatedAt: serverTimestamp()
+                    });
+                    document.getElementById('resultTitle').innerText = "✅ イベントを更新しました！";
+                } else {
+                    // --- 新規作成モード (Create) ---
+                    const colRef = collection(db, "events");
+                    const docRef = await addDoc(colRef, {
+                        title: title,
+                        candidates: candidates,
+                        createdAt: serverTimestamp()
+                    });
+                    targetId = docRef.id;
+                }
+
+                // 完了表示
+                resultArea.style.display = "block";
+                
+                // 共有URL (event.html に変更)
+                const currentUrl = window.location.href; 
+                // URLからファイル名やクエリを除去して、ベースのパスを取得
+                // 例: https://site.com/index.html?id=123 -> https://site.com/
+                let baseUrl = currentUrl.substring(0, currentUrl.lastIndexOf('/')) + '/';
+                // もしルート直下(index.html省略)でアクセスしている場合の補正
+                if (baseUrl.includes('index.html')) {
+                    baseUrl = baseUrl.replace('index.html', '');
+                }
+                // 回答ページ（event.html）のURLを作成
+                const answerPageUrl = baseUrl + "event.html?id=" + targetId;
+                shareLink.href = answerPageUrl;
+                shareLink.innerText = answerPageUrl;
+
+                // 編集用URL (自分用) - index.html (トップページ) でID付きを開く
+                const editPageUrl = baseUrl + "?id=" + targetId; // index.htmlは省略可能なので ?id= だけでもOK
+                editLink.href = editPageUrl;
+                editLink.innerText = editPageUrl;
+
+                // フォームを隠す
+                document.querySelector('.form-card').style.display = 'none';
+                btnCreate.style.display = 'none';
+                previewArea.style.display = 'none';
+                document.querySelector('h1').innerText = eventId ? "🎉 更新完了" : "🎉 作成完了";
+
+            } catch (e) {
+                console.error("Error: ", e);
+                alert("エラーが発生しました: " + e);
+                btnCreate.disabled = false;
+                btnCreate.innerText = eventId ? "変更を保存する" : "イベントを作成する";
             }
-        }, { passive: false });
-
-        matrixContainer.addEventListener('touchmove', function(e) {
-            if (!paintCheck.checked || !dragAction) return;
-            e.preventDefault();
-            const touch = e.touches[0];
-            const target = document.elementFromPoint(touch.clientX, touch.clientY);
-            const td = target ? target.closest('td') : null;
-            if (td && td !== lastTouchedCell && matrixContainer.contains(td) && !td.classList.contains('disabled-cell')) {
-                applyMyInput(td, dragAction); lastTouchedCell = td;
-            }
-        }, { passive: false });
-
-        matrixContainer.addEventListener('touchend', () => { dragAction = null; lastTouchedCell = null; });
-
-        matrixContainer.addEventListener('click', function(e) {
-            const td = e.target.closest('td');
-            if (!td || td.classList.contains('disabled-cell')) return;
-            if (paintCheck.checked) {
-                const key = td.dataset.key;
-                if (myMatrix[key] === currentPen) applyMyInput(td, 'erase'); else applyMyInput(td, 'paint');
-            } else { showDetailModal(td.dataset.key); }
-        });
-
-        function showDetailModal(key) {
-            const [date, time] = key.split('_');
-            document.getElementById('detailModalTitle').innerText = `${date} ${time}:00`;
-            const list = document.getElementById('detailList');
-            list.innerHTML = "";
-            if (Object.keys(allAnswers).length === 0) list.innerHTML = "<li>回答なし</li>";
-            Object.values(allAnswers).forEach(ans => {
-                const val = ans.matrix ? ans.matrix[key] : null;
-                let statusIcon = "－", color = "#ccc";
-                if(val === 'o') { statusIcon = "◯"; color = "green"; }
-                if(val === 'tri') { statusIcon = "△"; color = "#b8860b"; }
-                if(val === 'x') { statusIcon = "✕"; color = "red"; }
-                list.innerHTML += `<li class="user-list-item"><span>${ans.name || '名無し'}</span><span style="color:${color}; font-weight:bold;">${statusIcon}</span></li>`;
-            });
-            openModalBase('detailModal');
         }
-
-        function renderUserListModal() {
-            const list = document.getElementById('userSelectList');
-            list.innerHTML = "";
-            const uids = Object.keys(allAnswers);
-            if (uids.length === 0) { list.innerHTML = "<li style='padding:10px; color:#666; text-align:center'>回答なし</li>"; }
-            uids.forEach(uid => {
-                const ans = allAnswers[uid];
-                const isMe = (uid === currentUid);
-                const badge = isMe ? `<span class="badge-edit">編集中</span>` : '';
-                const li = document.createElement('li');
-                li.className = "user-list-item";
-                li.innerHTML = `<div style="flex:1" onclick="loadUserToEdit('${uid}')"><span style="font-weight:bold; font-size:1.1rem;">${ans.name}</span>${badge}</div><button class="btn-delete-user" onclick="deleteUser('${uid}')">削除</button>`;
-                list.appendChild(li);
-            });
-            openModalBase('userListModal');
-        }
-
-        btnSave.addEventListener('click', async () => {
-            const name = userNameInput.value.trim();
-            if (!name) { alert("お名前を入力してください"); return; }
-            
-            const executeSave = async () => {
-                btnSave.disabled = true; btnSave.innerText = "保存中...";
-                try {
-                    const docRef = doc(db, "events", eventId, "answers", currentUid);
-                    await setDoc(docRef, { name: name, matrix: myMatrix, updatedAt: serverTimestamp() });
-                    localStorage.setItem(`name_${eventId}`, name);
-                    userNameInput.classList.remove("editing");
-                    alert("保存しました！");
-                } catch (e) { console.error(e); alert("保存失敗: " + e); } 
-                finally { btnSave.disabled = false; btnSave.innerText = "保存"; }
-            };
-
-            if (Object.keys(myMatrix).length === 0) { window.showConfirm("日程が未選択ですが保存しますか？", executeSave); } 
-            else { executeSave(); }
-        });
-
-        init();
     </script>
 </body>
-</html>        
+</html>
