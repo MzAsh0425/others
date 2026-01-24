@@ -142,8 +142,6 @@
         <div class="header-top">
             <h2 class="event-title" id="eventTitle">読み込み中...</h2>
             <div class="header-actions">
-                <button class="btn-list" style="background:#28a745; color:white;" onclick="goToTop()">＋ 新規作成</button>
-                
                 <button class="btn-help" onclick="goToEditPage()">✏️</button> <button class="btn-help" onclick="openHelpModal()">？</button>
                 <button class="btn-list" onclick="openUserListModal()">👥 回答一覧</button>
             </div>
@@ -288,21 +286,11 @@
         window.loadUserToEdit = loadUserToEdit;
         window.deleteUser = deleteUser;
 
-        // トップページ（作成画面）へ移動
-        window.goToTop = () => {
-            // ベースURLを取得して移動
-            let baseUrl = window.location.href.substring(0, window.location.href.lastIndexOf('/')) + '/';
-            window.location.href = baseUrl; // index.html (トップ) へ
-        };
-
-        // 編集ページへ移動（修正：自分自身が編集機能を持つのではなく、トップページをID付きで開く）
+        // 編集ページへ移動する関数
         window.goToEditPage = () => {
             if(!confirm("イベント内容（日時やタイトル）を編集しますか？\n※管理者用の機能です")) return;
-            
-            // 現在のURL (.../event.html?id=xxx) を .../index.html?id=xxx に書き換える
-            // index.html は省略可能なので、ルートディレクトリ + クエリパラメータにする
-            const currentUrl = window.location.href;
-            const editUrl = currentUrl.replace('event.html', 'index.html'); // または単に '/'
+            // 現在のURL (index.html?id=xxx) を admin.html?id=xxx に書き換えて移動
+            const editUrl = window.location.href.replace('index.html', 'admin.html');
             window.location.href = editUrl;
         };
 
