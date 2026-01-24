@@ -1,11 +1,9 @@
-<!DOCTYPE html>
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>イベント作成・編集</title>
     <style>
-        /* --- デザイン設定 --- */
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             background-color: #f4f4f9; padding: 20px; color: #333;
@@ -19,20 +17,23 @@
         }
         .input-group { margin-bottom: 15px; }
         label { display: block; font-weight: bold; margin-bottom: 5px; font-size: 0.9rem; }
-        input[type="text"], input[type="date"], select {
+        input[type="text"], input[type="date"], select, textarea {
             width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px;
             font-size: 1rem; box-sizing: border-box; background: #fff;
-            -webkit-appearance: none; appearance: none; min-height: 44px;
+            -webkit-appearance: none; appearance: none;
+        }
+        /* メモ欄用のスタイル */
+        textarea {
+            min-height: 80px; resize: vertical; line-height: 1.5; font-family: inherit;
         }
 
-        /* レスポンシブ対応レイアウト */
         .date-adder {
             display: flex; flex-wrap: wrap; gap: 15px; align-items: flex-end;
             background: #eef2f5; padding: 15px; border-radius: 8px;
         }
         .field-date { flex: 1 1 160px; }
         .field-time-range { flex: 2 1 220px; display: flex; align-items: center; gap: 10px; }
-        .field-time-range select { flex: 1; }
+        .field-time-range select { flex: 1; min-height: 44px; }
         .field-btn { flex: 0 0 auto; }
 
         button.btn-add {
@@ -54,8 +55,6 @@
             cursor: pointer; margin-top: 20px;
         }
         button.btn-create:disabled { background-color: #ccc; cursor: not-allowed; }
-
-        /* 編集モード時の色変え */
         button.btn-create.is-edit { background-color: #007bff; }
 
         .candidate-list { list-style: none; padding: 0; margin-top: 15px; }
@@ -80,8 +79,6 @@
             display: none; margin-top: 30px; background: #d4edda; color: #155724;
             padding: 20px; border-radius: 8px; border: 1px solid #c3e6cb; word-break: break-all;
         }
-        
-        /* 読み込み中オーバーレイ */
         #loadingOverlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(255,255,255,0.8); z-index: 999; display: none;
@@ -100,6 +97,11 @@
         <div class="input-group">
             <label>イベント名</label>
             <input type="text" id="eventTitle" placeholder="例：第3回 開発定例">
+        </div>
+        
+        <div class="input-group">
+            <label>備考・メモ（任意）</label>
+            <textarea id="eventMemo" placeholder="例：会議のテーマは〇〇です。&#13;&#10;所要時間は2時間を予定しています。"></textarea>
         </div>
 
         <label>候補日時の追加</label>
@@ -134,7 +136,7 @@
         <br><br>
         <hr style="border:0; border-top:1px solid #c3e6cb; margin:15px 0;">
         <span style="font-size:0.9rem;">
-            ✏️ 後から内容を修正したい場合は、このページ（admin.html）のURLをブックマークしておいてください：<br>
+            ✏️ 後から内容を修正したい場合は、このページ（index.html）のURLをブックマークしておいてください：<br>
             <a href="#" id="editLink" target="_blank"></a>
         </span>
     </div>
@@ -154,13 +156,11 @@
         // -----------------------------------------------------
 
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        // updateDoc を追加
         import { getFirestore, collection, addDoc, doc, getDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // 要素
         const listEl = document.getElementById('candidateList');
         const previewArea = document.getElementById('previewArea');
         const previewTable = document.getElementById('previewTable');
@@ -170,15 +170,15 @@
         const shareLink = document.getElementById('shareLink');
         const editLink = document.getElementById('editLink');
         const titleInput = document.getElementById('eventTitle');
+        const memoInput = document.getElementById('eventMemo'); // 追加
         const loadingOverlay = document.getElementById('loadingOverlay');
 
-        // URLパラメータからIDを取得（編集モード判定）
         const urlParams = new URLSearchParams(window.location.search);
         const eventId = urlParams.get('id');
+        const mode = urlParams.get('mode');
 
         let candidates = []; 
 
-        // 初期化
         const startSel = document.getElementById('inputStart');
         const endSel = document.getElementById('inputEnd');
         for(let i=0; i<=23; i++) { 
@@ -188,16 +188,19 @@
         startSel.value = "10"; endSel.value = "18";
         document.getElementById('inputDate').valueAsDate = new Date();
 
-        // 編集モードならデータをロード
         if (eventId) {
-            initEditMode();
+            if (mode === 'edit') {
+                initEditMode();
+            } else {
+                const currentUrl = window.location.href;
+                const redirectUrl = currentUrl.replace('index.html', 'event.html'); 
+                window.location.replace("event.html" + window.location.search);
+            }
         }
 
-        // イベントリスナー
         btnAdd.addEventListener('click', addCandidate);
         btnCreate.addEventListener('click', saveEvent);
 
-        // --- 編集モード初期化 ---
         async function initEditMode() {
             loadingOverlay.style.display = 'flex';
             document.title = "イベント編集";
@@ -213,6 +216,7 @@
                 if (docSnap.exists()) {
                     const data = docSnap.data();
                     titleInput.value = data.title;
+                    memoInput.value = data.memo || ""; // メモ読み込み
                     candidates = data.candidates || [];
                     renderList();
                     renderPreview();
@@ -227,14 +231,20 @@
             }
         }
 
-        // --- ロジック ---
         function addCandidate() {
             const dateVal = document.getElementById('inputDate').value;
             const startVal = parseInt(document.getElementById('inputStart').value);
             const endVal = parseInt(document.getElementById('inputEnd').value);
 
             if (!dateVal) { alert("日付を選択してください"); return; }
-            if (startVal >= endVal) { alert("終了時間は開始時間より後にしてください"); return; }
+            
+            // 【修正】23時開始で23時終了の場合は許可する（23-24時扱いにするため）
+            if (startVal > endVal) { 
+                alert("終了時間は開始時間より後にしてください"); return; 
+            }
+            if (startVal === endVal && startVal !== 23) {
+                 alert("終了時間は開始時間より後にしてください"); return;
+            }
 
             candidates.push({ date: dateVal, start: startVal, end: endVal });
             candidates.sort((a, b) => new Date(a.date) - new Date(b.date));
@@ -253,6 +263,8 @@
             candidates.forEach((c, index) => {
                 const li = document.createElement('li');
                 li.className = "candidate-item";
+                // 23-23 の場合は表示をわかりやすくするなどの工夫も可能だが、
+                // ここではシンプルにそのまま表示（ユーザーは23:00終了を選択しているので）
                 li.innerHTML = `<span><strong>${c.date}</strong> ${c.start}:00 ～ ${c.end}:00</span><button class="btn-delete" onclick="window.removeCandidate(${index})">削除</button>`;
                 listEl.appendChild(li);
             });
@@ -264,7 +276,13 @@
 
             let minStart = 24, maxEnd = 0;
             const uniqueDates = [...new Set(candidates.map(c => c.date))];
-            candidates.forEach(c => { if (c.start < minStart) minStart = c.start; if (c.end > maxEnd) maxEnd = c.end; });
+            
+            candidates.forEach(c => { 
+                if (c.start < minStart) minStart = c.start;
+                // 【修正】終了時間が23なら、表の計算上は24として扱う
+                let effectiveEnd = (c.end === 23) ? 24 : c.end;
+                if (effectiveEnd > maxEnd) maxEnd = effectiveEnd;
+            });
 
             let html = `<thead><tr><th>時間</th>`;
             uniqueDates.forEach(d => {
@@ -276,7 +294,12 @@
             for (let t = minStart; t < maxEnd; t++) {
                 html += `<tr><th>${t}:00</th>`;
                 uniqueDates.forEach(date => {
-                    const isActive = candidates.some(c => c.date === date && t >= c.start && t < c.end);
+                    // 【修正】ここでも終了時間が23なら24として判定
+                    const isActive = candidates.some(c => {
+                        let effectiveEnd = (c.end === 23) ? 24 : c.end;
+                        return c.date === date && t >= c.start && t < effectiveEnd;
+                    });
+                    
                     if (isActive) html += `<td class="active-cell">◯</td>`;
                     else html += `<td class="disabled-cell"></td>`;
                 });
@@ -286,9 +309,10 @@
             previewTable.innerHTML = html;
         }
 
-        // --- 保存処理（新規作成 / 更新） ---
         async function saveEvent() {
             const title = titleInput.value;
+            const memo = memoInput.value; // メモ取得
+            
             if(!title) { alert("イベント名を入力してください"); return; }
             if(candidates.length === 0) { alert("候補日時を追加してください"); return; }
 
@@ -297,50 +321,40 @@
 
             try {
                 let targetId = eventId;
-
                 if (eventId) {
-                    // --- 更新モード (Update) ---
                     const docRef = doc(db, "events", eventId);
                     await updateDoc(docRef, {
                         title: title,
+                        memo: memo, // メモ保存
                         candidates: candidates,
                         updatedAt: serverTimestamp()
                     });
                     document.getElementById('resultTitle').innerText = "✅ イベントを更新しました！";
                 } else {
-                    // --- 新規作成モード (Create) ---
                     const colRef = collection(db, "events");
                     const docRef = await addDoc(colRef, {
                         title: title,
+                        memo: memo, // メモ保存
                         candidates: candidates,
                         createdAt: serverTimestamp()
                     });
                     targetId = docRef.id;
                 }
 
-                // 完了表示
                 resultArea.style.display = "block";
                 
-                // 共有URL (event.html に変更)
                 const currentUrl = window.location.href; 
-                // URLからファイル名やクエリを除去して、ベースのパスを取得
-                // 例: https://site.com/index.html?id=123 -> https://site.com/
                 let baseUrl = currentUrl.substring(0, currentUrl.lastIndexOf('/')) + '/';
-                // もしルート直下(index.html省略)でアクセスしている場合の補正
-                if (baseUrl.includes('index.html')) {
-                    baseUrl = baseUrl.replace('index.html', '');
-                }
-                // 回答ページ（event.html）のURLを作成
+                if (baseUrl.includes('index.html')) { baseUrl = baseUrl.replace('index.html', ''); }
+
                 const answerPageUrl = baseUrl + "event.html?id=" + targetId;
                 shareLink.href = answerPageUrl;
                 shareLink.innerText = answerPageUrl;
 
-                // 編集用URL (自分用) - index.html (トップページ) でID付きを開く
-                const editPageUrl = baseUrl + "?id=" + targetId; // index.htmlは省略可能なので ?id= だけでもOK
+                const editPageUrl = baseUrl + "?id=" + targetId;
                 editLink.href = editPageUrl;
                 editLink.innerText = editPageUrl;
 
-                // フォームを隠す
                 document.querySelector('.form-card').style.display = 'none';
                 btnCreate.style.display = 'none';
                 previewArea.style.display = 'none';
