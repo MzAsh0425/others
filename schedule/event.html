@@ -22,18 +22,22 @@
             flex: 0 0 auto; padding: 10px 15px; background: white;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1); z-index: 100;
         }
-        .header-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+        .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
         .event-info { flex: 1; margin-right: 10px; }
         .event-title { margin: 0; font-size: 1.1rem; color: #2c3e50; font-weight: bold; }
         
-        /* メモ表示エリア */
+        /* 【修正】メモ表示エリア */
         .event-memo {
-            font-size: 0.85rem; color: #555; background: #f1f3f5;
-            padding: 8px; border-radius: 4px; margin-top: 5px;
-            white-space: pre-wrap; display: none; max-height: 80px; overflow-y: auto;
+            font-size: 0.9rem; color: #444; background: #fff;
+            padding: 8px 10px; border-radius: 4px; margin-bottom: 10px; 
+            border: 1px solid #eee;
+            white-space: pre-wrap; display: none; 
+            max-height: 150px; /* 高さを少し拡大 */
+            overflow-y: auto;
+            width: 100%; box-sizing: border-box; /* 横幅いっぱい */
         }
 
-        .header-actions { display: flex; gap: 8px; align-items: center; }
+        .header-actions { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
         .btn-list { font-size: 0.8rem; padding: 6px 12px; background: #e9ecef; border: none; border-radius: 4px; cursor: pointer; color: #333; display: flex; align-items: center; gap: 4px; }
         .btn-help { width: 28px; height: 28px; border-radius: 50%; border: 1px solid #ccc; background: white; color: #666; font-weight: bold; font-size: 0.9rem; cursor: pointer; display: flex; justify-content: center; align-items: center; }
 
@@ -42,6 +46,17 @@
         input.name-input.editing { border: 2px solid var(--accent-color); background: #f0f8ff; }
         button.btn-save { background-color: var(--primary-color); color: white; border: none; padding: 0 20px; border-radius: 4px; font-weight: bold; cursor: pointer; white-space: nowrap; }
         button.btn-save:disabled { background-color: #999; }
+
+        /* --- 【広告枠A】ヘッダー下 --- */
+        .ad-banner-top {
+            flex: 0 0 auto; background: #f4f4f9; text-align: center;
+            padding: 5px 0; border-bottom: 1px solid #ddd;
+            min-height: 50px; display: flex; justify-content: center; align-items: center;
+        }
+        .ad-placeholder {
+            width: 320px; height: 50px; background: #ddd; color: #888;
+            font-size: 0.8rem; display: flex; justify-content: center; align-items: center;
+        }
 
         /* マトリクスエリア */
         .matrix-container {
@@ -117,6 +132,16 @@
         .badge-edit { font-size: 0.75rem; background: var(--accent-color); color: white; padding: 2px 6px; border-radius: 4px; }
         .btn-new-user { width: 100%; background-color: #28a745; color: white; padding: 12px; margin-bottom: 10px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; }
         .btn-delete-user { background-color: #dc3545; color: white; padding: 4px 8px; border: none; border-radius: 4px; font-size: 0.8rem; cursor: pointer; margin-left: 10px; }
+
+        /* --- 【広告枠B】完了モーダル内広告 --- */
+        .ad-in-modal {
+            margin: 20px 0; background: #f9f9f9; padding: 10px; border-radius: 8px;
+            display: flex; justify-content: center; align-items: center; min-height: 250px;
+        }
+        .ad-placeholder-rect {
+            width: 300px; height: 250px; background: #ddd; color: #888;
+            font-size: 0.9rem; display: flex; justify-content: center; align-items: center;
+        }
     </style>
 </head>
 <body>
@@ -125,7 +150,6 @@
         <div class="header-top">
             <div class="event-info">
                 <h2 class="event-title" id="eventTitle">読み込み中...</h2>
-                <div id="eventMemoDisplay" class="event-memo"></div>
             </div>
             <div class="header-actions">
                 <button class="btn-list" style="background:#28a745; color:white;" onclick="goToTop()">＋ 新規作成</button>
@@ -134,6 +158,9 @@
                 <button class="btn-list" onclick="openUserListModal()">👥 回答一覧</button>
             </div>
         </div>
+        
+        <div id="eventMemoDisplay" class="event-memo"></div>
+
         <div class="user-input-area">
             <input type="text" id="userName" class="name-input" placeholder="あなたのお名前">
             <button class="btn-save" id="btnSave">保存</button>
@@ -142,6 +169,10 @@
             <span id="statusMsg">データを読み込んでいます...</span>
         </div>
     </div>
+
+    <div class="ad-banner-top">
+        <div class="ad-placeholder">広告枠（ヘッダー下）</div>
+        </div>
 
     <div class="matrix-container" id="matrix">
         <table id="scheduleTable"></table>
@@ -186,6 +217,18 @@
         <button class="modal-close" onclick="closeAllModals()">閉じる</button>
     </div>
 
+    <div class="modal-window" id="successModal">
+        <h3 class="modal-title">✅ 保存しました！</h3>
+        <p style="font-size:0.9rem; text-align:center;">回答ありがとうございます。</p>
+        
+        <div class="ad-in-modal">
+            <div class="ad-placeholder-rect">広告枠（完了画面）<br>300x250推奨</div>
+            </div>
+
+        <button class="btn-new-user" onclick="closeAllModals()">閉じる</button>
+        <button class="btn-list" style="width:100%; margin-top:10px; justify-content:center;" onclick="goToTop()">あなたもイベントを作る</button>
+    </div>
+
     <div id="systemOverlay" class="system-overlay">
         <div class="system-box">
             <p id="systemMessage" class="system-text"></p>
@@ -195,7 +238,7 @@
 
     <script type="module">
         // -----------------------------------------------------
-        // ▼▼▼ firebaseConfig をここに貼り付けてください ▼▼▼
+        // ▼▼▼ firebaseConfig ▼▼▼
         // -----------------------------------------------------
         const firebaseConfig = {
           apiKey: "AIzaSyDjC31VRAcCWdnCtxz4mZMn5F8NAMe5h5o",
@@ -262,6 +305,7 @@
             document.getElementById('detailModal').style.display = 'none';
             document.getElementById('userListModal').style.display = 'none';
             document.getElementById('helpModal').style.display = 'none';
+            document.getElementById('successModal').style.display = 'none';
         };
         const openModalBase = (id) => {
             document.getElementById('contentOverlay').style.display = 'block';
@@ -282,7 +326,6 @@
                 const eventData = eventSnap.data();
                 eventTitleEl.innerText = eventData.title;
                 
-                // メモの表示処理
                 if (eventData.memo) {
                     eventMemoEl.textContent = eventData.memo;
                     eventMemoEl.style.display = "block";
@@ -308,13 +351,11 @@
             } catch (e) { console.error(e); eventTitleEl.innerText = "読み込みエラー"; }
         }
 
-        // トップページ（新規作成）へ移動
         window.goToTop = () => {
             let baseUrl = window.location.href.substring(0, window.location.href.lastIndexOf('/')) + '/';
             window.location.href = baseUrl; 
         };
 
-        // 編集ページへ移動
         window.goToEditPage = () => {
             window.showConfirm("イベント内容（日時やタイトル）を編集しますか？\n※管理者用の機能です", () => {
                 const currentUrl = window.location.href;
@@ -364,7 +405,6 @@
             
             candidates.forEach(c => { 
                 if (c.start < minStart) minStart = c.start; 
-                // 終了が23時なら24時まで拡張
                 let effectiveEnd = (c.end === 23) ? 24 : c.end;
                 if (effectiveEnd > maxEnd) maxEnd = effectiveEnd;
             });
@@ -512,7 +552,9 @@
                     await setDoc(docRef, { name: name, matrix: myMatrix, updatedAt: serverTimestamp() });
                     localStorage.setItem(`name_${eventId}`, name);
                     userNameInput.classList.remove("editing");
-                    alert("保存しました！");
+                    
+                    openModalBase('successModal'); // 広告付きモーダルを表示
+                    
                 } catch (e) { console.error(e); alert("保存失敗: " + e); } 
                 finally { btnSave.disabled = false; btnSave.innerText = "保存"; }
             };
